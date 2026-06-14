@@ -21,3 +21,4 @@ replace.txt
 
 .DS_Store
 node_modules
+frontend/node_modules
