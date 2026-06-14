@@ -1,0 +1,68 @@
+/* NavBar.css */
+.navbar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #11141a;
+  padding: 0 2.5rem;
+  height: 70px;
+  min-height: 70px;
+  border-bottom: 1px solid #1f2833;
+  box-sizing: border-box;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  font-family: 'Poppins', sans-serif;
+}
+
+.navbar-logo-section h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(45deg, #4facfe, #00f2fe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+/* Far Right Container alignment rules */
+.navbar-actions-section {
+  display: flex;
+  align-items: center;
+  margin-left: auto; /* Guarantees layout pushes all the way to right side wall border */
+}
+
+.login-link-btn {
+  color: #4facfe;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.login-link-btn:hover {
+  color: #00f2fe;
+}
+
+.logout-button {
+  background: rgba(255, 75, 75, 0.1);
+  color: #ff4b4b;
+  border: 1px solid rgba(255, 75, 75, 0.25);
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.logout-button:hover {
+  background: #ff4b4b;
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(255, 75, 75, 0.35);
+  transform: translateY(-1px);
+}
+
+.logout-button:active {
+  transform: translateY(1px);
+}

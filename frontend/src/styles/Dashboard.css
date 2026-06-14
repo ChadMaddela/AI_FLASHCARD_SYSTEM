@@ -1,0 +1,391 @@
+/* Dashboard.css */
+.dashboard-hub-wrapper {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-header h2 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 0.4rem 0;
+  letter-spacing: -0.5px;
+}
+
+.dashboard-header p {
+  color: #8a99ad;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+/* Master content split wrapper (Handles layout split when analytics render side-by-side) */
+.dashboard-main-content {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2.5rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-main-content {
+    flex-direction: row;
+  }
+}
+
+/* The Responsive Card Hub Grid */
+.grid-hub-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 2rem;
+  flex: 1;
+  width: 100%;
+}
+
+/* Premium UI Flashcard Layout Blocks */
+.hub-card {
+  background: #141822;
+  border: 1px solid #222938;
+  border-radius: 20px;
+  padding: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hub-card:hover {
+  border-color: #2f384c;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.card-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+}
+.blue-accent { background: rgba(79, 172, 254, 0.12); color: #4facfe; }
+
+.mastery-indicator {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #00f2fe;
+  background: rgba(0, 242, 254, 0.08);
+  padding: 0.35rem 0.85rem;
+  border-radius: 8px;
+}
+
+.card-question-text p {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #ffffff;
+  line-height: 1.6;
+  margin: 0 0 1.75rem 0;
+}
+
+/* Clean Choice Layout Buttons Setup */
+.choice-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+}
+
+.choice-button {
+  display: flex;
+  align-items: center;
+  background: #1b212f;
+  border: 1px solid #283146;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.choice-button:hover:not(:disabled) {
+  background: #232a3b;
+  border-color: #4a5775;
+}
+
+.choice-button.selected {
+  background: rgba(79, 172, 254, 0.08);
+  border-color: #4facfe;
+  box-shadow: 0 0 12px rgba(79, 172, 254, 0.15);
+}
+
+.choice-letter {
+  font-weight: 700;
+  color: #4facfe;
+  background: rgba(79, 172, 254, 0.1);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.choice-button.selected .choice-letter {
+  background: #4facfe;
+  color: #11141a;
+}
+
+.choice-string {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  font-family: 'Poppins', sans-serif;
+  line-height: 1.5;
+}
+
+/* Footer Section Positioning */
+.card-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid #1f2635;
+  gap: 1rem;
+}
+
+.topic-meta-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.topic-meta-text span {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Master Submission Call-To-Action Button */
+.submit-button {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: #0b0c10;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+}
+
+.submit-button:disabled {
+  background: #232a3b;
+  color: #4a5568;
+  cursor: not-allowed;
+}
+
+/* Sidebar Analytics Panel Styling */
+.analytics-reveal-panel {
+  width: 100%;
+  background: #141822;
+  border-radius: 20px;
+  padding: 2rem;
+  box-sizing: border-box;
+  border: 1px solid #222938;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 1024px) {
+  .analytics-reveal-panel {
+    width: 340px;
+    position: sticky;
+    top: 0;
+  }
+}
+
+.analytics-reveal-panel h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.35rem;
+  color: #ffffff;
+}
+
+.panel-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1.25rem;
+}
+
+.success-tint .panel-badge { background: rgba(74, 222, 128, 0.1); color: #4ade80; }
+.success-tint { border-color: rgba(74, 222, 128, 0.25); }
+.error-tint .panel-badge { background: rgba(248, 113, 113, 0.1); color: #f87171; }
+.error-tint { border-color: rgba(248, 113, 113, 0.25); }
+
+.correction-text {
+  font-size: 0.92rem;
+  color: #94a3b8;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.highlight-text {
+  color: #ffffff;
+  background: #1b212f;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.analytics-metrics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-box {
+  background: #1b212f;
+  border: 1px solid #232a3b;
+  padding: 0.85rem 1.25rem;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.metric-val {
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 1.05rem;
+}
+
+.sub-topic-tag {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Empty State Card Configuration */
+.empty-state-card {
+  width: 100%;
+  background: #141822;
+  border: 1px dashed #283146;
+  border-radius: 20px;
+  padding: 4rem 2rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state-card h3 {
+  color: #ffffff;
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-state-card p {
+  color: #64748b;
+  max-width: 460px;
+  margin: 0 auto;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* =========================================
+   Teacher Dashboard Additions (Form Inputs)
+   ========================================= */
+
+.upload-form-flex {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-group label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.dark-input {
+  background: #1b212f;
+  border: 1px solid #283146;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  color: #ffffff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dark-input:focus {
+  outline: none;
+  border-color: #4facfe;
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.15);
+}
+
+.dark-input::placeholder {
+  color: #4a5568;
+}
+
+/* Custom File Upload Button Styling */
+.file-input {
+  padding: 0.6rem;
+  color: #94a3b8;
+}
+
+.file-input::-webkit-file-upload-button,
+.file-input::file-selector-button {
+  background: #232a3b;
+  color: #4facfe;
+  border: 1px solid #283146;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  margin-right: 1rem;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.file-input::-webkit-file-upload-button:hover,
+.file-input::file-selector-button:hover {
+  background: #2f384c;
+}
