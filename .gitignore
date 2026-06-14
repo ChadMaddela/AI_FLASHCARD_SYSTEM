@@ -1,0 +1,16 @@
+# Environment files
+.env
+
+# Python virtual environments
+venv/
+*.pyc
+__pycache__/
+
+# Node modules (frontend)
+frontend/node_modules/
+
+# Logs
+*.log
+
+# Cache
+*.pytest_cache/
