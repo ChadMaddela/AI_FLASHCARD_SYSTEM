@@ -14,3 +14,7 @@ frontend/node_modules/
 
 # Cache
 *.pytest_cache/
+
+
+# Filter-repo replacement file
+replace.txt
