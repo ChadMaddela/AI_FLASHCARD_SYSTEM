@@ -98,10 +98,9 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4000",   # frontend dev server
-]
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:4000").split(",")
 
+CORS_ALLOW_CREDENTIALS = True
 # Google Gemini AI Integration Configuration Settings
 GEMINI_API_KEY = os.environ.get(
     "GEMINI_API_KEY",
