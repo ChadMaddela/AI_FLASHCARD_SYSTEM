@@ -1,41 +1,55 @@
 import React, { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom"; // Added for deterministic routing
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
-import "../styles/LoginPage.css"; // dark theme CSS
+import "../styles/LoginPage.css"; 
 
 const LoginPage = () => {
   const { setToken, setRole, setUsernameState } = useContext(AuthContext);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate(); // Hook assignment
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      // request JWT token
-      const res = await api.post("/token/", { username, password });
+      // Request JWT Token
+      const res = await api.post("token/", { username, password });
       const { access } = res.data;
+      
+      // Always store token before running secondary calls so interceptor captures it
       localStorage.setItem("token", access);
 
-      // fetch user profile data
-      const userRes = await api.get("/user/me/", {
-        headers: { Authorization: `Bearer ${access}` },
-      });
+      // Fetch user profile data via clean relative endpoint mapping
+      const userRes = await api.get("user/me/");
       
       const role = userRes.data.role;
-      // Capture alternative name properties depending on your specific Django backend field assignments
       const finalName = userRes.data.first_name || userRes.data.username || userRes.data.name || "Student";
       
       localStorage.setItem("role", role);
-      localStorage.setItem("username", finalName); // Save to storage cache
+      localStorage.setItem("username", finalName);
 
+      // Update Context States
       setToken(access);
       setRole(role);
       if (setUsernameState) {
-        setUsernameState(finalName); // Update active global tracking state
+        setUsernameState(finalName);
       }
+
+      // Route users programmatically based on their backend permissions role mapping
+      const normalizedRole = role ? role.toLowerCase() : "";
+      if (normalizedRole === "student") {
+        navigate("/student-redirect", { replace: true });
+      } else if (normalizedRole === "teacher") {
+        navigate("/teacher-dashboard", { replace: true });
+      } else {
+        setError("Unauthorized system profile role detected.");
+      }
+
     } catch (err) {
+      console.error("Login failure debug details:", err);
       setError("Invalid username or password");
     }
   };

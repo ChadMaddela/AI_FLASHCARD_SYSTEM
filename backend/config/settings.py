@@ -15,10 +15,14 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-fallback-key")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
+# Safely parse ALLOWED_HOSTS from env string
+ALLOWED_HOSTS_RAW = os.getenv("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_RAW.split(",") if host.strip()] if ALLOWED_HOSTS_RAW else ["localhost", "127.0.0.1"]
+
 
 # Application definition
 INSTALLED_APPS = [
+    "corsheaders",   # CRITICAL: Keep corsheaders at the very top of application definitions
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -26,14 +30,13 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "corsheaders",   # NEW: allow frontend requests
     "core",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",   # CRITICAL: Must be at the very top to intercept OPTIONS preflights
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",   # NEW: must be high in the stack
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -60,6 +63,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+
 # Database (Supabase session pooler)
 DATABASES = {
     "default": dj_database_url.config(
@@ -67,8 +71,10 @@ DATABASES = {
     )
 }
 
+
 # Custom user model
 AUTH_USER_MODEL = "core.User"
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -78,14 +84,17 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+
 # Internationalization
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+
 # Static files
 STATIC_URL = "static/"
+
 
 # REST Framework + JWT
 REST_FRAMEWORK = {
@@ -97,12 +106,39 @@ REST_FRAMEWORK = {
     ),
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:4000").split(",")
 
+# CORS configuration parameters
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS_RAW = os.getenv("CORS_ALLOWED_ORIGINS", "")
+
+if CORS_ALLOWED_ORIGINS_RAW:
+    # Safely strip whitespace from environmental origins array parsing
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS_RAW.split(",") if origin.strip()]
+else:
+    # Reliable local development fallback lists
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:4000",
+        "http://127.0.0.1:4000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+# Explicitly permit Auth headers to prevent CORS blocking during dynamic requests
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+
 # Google Gemini AI Integration Configuration Settings
-GEMINI_API_KEY = os.environ.get(
-    "GEMINI_API_KEY",
-    "REMOVED"
-)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
