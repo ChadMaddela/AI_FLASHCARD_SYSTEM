@@ -15,10 +15,6 @@ gunicorn
 
 # --- Supabase Integration ---
 supabase==2.13.0
-postgrest==0.16.7
-storage3==0.11.2
-realtime==2.1.2
-gotrue==2.12.0
 
 # --- Google Gemini AI Integration ---
 google-genai==2.8.0
