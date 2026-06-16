@@ -11,10 +11,18 @@ const TeacherDashboard = () => {
 
   const { token, usernameState } = useContext(AuthContext);
 
-  // Safely guarantee proper name capitalize formats string manipulation
+  // Safely guarantee proper name capitalize formats
   const activeName = usernameState || localStorage.getItem("username") || "Teacher";
   const firstName = activeName.split(/[_ ]/)[0];
-  const personalizedName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+  const personalizedName =
+    firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+
+  // Normalize API response to avoid crashes
+  const normalizeMaterials = (data) => {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.materials)) return data.materials;
+    return [];
+  };
 
   // Fetch materials on load
   useEffect(() => {
@@ -23,9 +31,10 @@ const TeacherDashboard = () => {
         const res = await api.get("/materials/", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setMaterials(res.data.materials);
+        setMaterials(normalizeMaterials(res.data));
       } catch (err) {
         console.error("Failed to fetch materials:", err);
+        setMaterials([]); // prevent blank screen
       }
     };
     if (token) {
@@ -54,7 +63,7 @@ const TeacherDashboard = () => {
       const updated = await api.get("/materials/", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMaterials(updated.data.materials);
+      setMaterials(normalizeMaterials(updated.data));
       setTitle("");
       setFile(null);
     } catch (err) {
@@ -73,15 +82,13 @@ const TeacherDashboard = () => {
       </div>
 
       <div className="dashboard-main-content">
-        
-        {/* Left Panel: Upload Form (Reusing Analytics Panel Styling) */}
+        {/* Left Panel: Upload Form */}
         <div className="analytics-reveal-panel">
-          <div className="panel-badge blue-accent">
-            Upload Module
-          </div>
+          <div className="panel-badge blue-accent">Upload Module</div>
           <h3>Generate Flashcards</h3>
           <p className="correction-text">
-            Upload your lecture text or files. Gemini will automatically extract concepts into multiple-choice questions.
+            Upload your lecture text or files. Gemini will automatically extract
+            concepts into multiple-choice questions.
           </p>
 
           <form onSubmit={handleUpload} className="upload-form-flex">
@@ -117,7 +124,10 @@ const TeacherDashboard = () => {
             <div className="empty-state-card">
               <div className="empty-icon">📚</div>
               <h3>No Materials Yet</h3>
-              <p>Upload your first lecture module to generate an adaptive flashcard deck for your students.</p>
+              <p>
+                Upload your first lecture module to generate an adaptive flashcard
+                deck for your students.
+              </p>
             </div>
           ) : (
             materials.map((m) => (
@@ -130,14 +140,19 @@ const TeacherDashboard = () => {
                 <div className="card-question-text">
                   <p>{m.title}</p>
                 </div>
-                
-                <p className="correction-text" style={{ marginBottom: 'auto' }}>
+
+                <p className="correction-text" style={{ marginBottom: "auto" }}>
                   {m.description}
                 </p>
 
                 <div className="card-footer-row">
-                  <p className="topic-meta-text">Uploaded by: <span>{m.uploaded_by}</span></p>
-                  <button className="submit-button" style={{ padding: '0.5rem 1rem', fontSize: '0.75rem' }}>
+                  <p className="topic-meta-text">
+                    Uploaded by: <span>{m.uploaded_by}</span>
+                  </p>
+                  <button
+                    className="submit-button"
+                    style={{ padding: "0.5rem 1rem", fontSize: "0.75rem" }}
+                  >
                     VIEW STATS
                   </button>
                 </div>
@@ -145,7 +160,6 @@ const TeacherDashboard = () => {
             ))
           )}
         </div>
-        
       </div>
     </div>
   );

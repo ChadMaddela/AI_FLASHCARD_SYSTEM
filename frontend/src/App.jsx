@@ -1,12 +1,21 @@
-import React, { useContext, useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import React, { useContext, useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { AuthContext } from "./context/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import StudentDashboard from "./pages/StudentDashboard";
+import TeacherDashboard from "./pages/TeacherDashboard";
+import MaterialsPage from "./pages/MaterialsPage"; // ✅ import MaterialsPage
 import NavBar from "./components/NavBar";
 import api from "./api";
 
-// Simple dynamic middleman component to capture and split student materials asynchronously
+// Student redirector: fetch first material and forward
 function StudentRedirector() {
   const { token } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -18,17 +27,17 @@ function StudentRedirector() {
         const res = await api.get("/materials/", {
           headers: { Authorization: `Bearer ${activeToken}` },
         });
-        if (res.data && res.data.length > 0) {
-          navigate(`/student/${res.data[0].id}`, { replace: true });
+        const data = Array.isArray(res.data) ? res.data : res.data.materials || [];
+        if (data.length > 0 && data[0].id) {
+          navigate(`/student/${data[0].id}`, { replace: true });
         } else {
-          // Fallback if the teacher hasn't assigned any structural course decks yet
           navigate("/no-materials", { replace: true });
         }
       } catch (err) {
         console.error("Error setting dynamic material route destination:", err);
+        navigate("/no-materials", { replace: true });
       }
     };
-
     fetchInitialMaterial();
   }, [token, navigate]);
 
@@ -43,44 +52,80 @@ function AppRoutes() {
   const { token, role } = useContext(AuthContext);
   const normalizedRole = role ? role.toLowerCase() : null;
   const location = useLocation();
-
   const isLoginPage = location.pathname === "/login";
 
   return (
-    <div className={isLoginPage ? "app-container login-view" : "app-container authenticated-view"}>
-      {/* Show NavBar everywhere except login */}
+    <div
+      className={
+        isLoginPage ? "app-container login-view" : "app-container authenticated-view"
+      }
+    >
       {!isLoginPage && <NavBar />}
 
-      {/* Main Content Area Container */}
       <div className={isLoginPage ? "auth-container" : "main-content-layout"}>
         <Routes>
-          {/* Default Base Navigation Hooks */}
+          {/* Default route */}
           <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={token ? (
-            normalizedRole === "student" ? <Navigate to="/student-redirect" replace /> : <Navigate to="/login" replace />
-          ) : <LoginPage />} />
 
-          {/* Secure Authenticated Student Routes */}
+          {/* Login route */}
+          <Route
+            path="/login"
+            element={
+              token ? (
+                normalizedRole === "student" ? (
+                  <Navigate to="/student-redirect" replace />
+                ) : normalizedRole === "teacher" ? (
+                  <Navigate to="/teacher-dashboard" replace />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              ) : (
+                <LoginPage />
+              )
+            }
+          />
+
+          {/* Student routes */}
           {token && normalizedRole === "student" && (
             <>
               <Route path="/student-redirect" element={<StudentRedirector />} />
               <Route path="/student/:materialId" element={<StudentDashboard />} />
-              <Route path="/no-materials" element={
-                <div style={{ padding: "40px", color: "#fff" }}>
-                  <h2>No Learning Decks Found</h2>
-                  <p>Please wait for an administrator or teacher to compile your presentation reviews.</p>
-                </div>
-              } />
+              <Route path="/materials" element={<MaterialsPage />} /> {/* ✅ new route */}
+              <Route
+                path="/no-materials"
+                element={
+                  <div style={{ padding: "40px", color: "#fff" }}>
+                    <h2>No Learning Decks Found</h2>
+                    <p>
+                      Please wait for an administrator or teacher to compile your
+                      presentation reviews.
+                    </p>
+                  </div>
+                }
+              />
             </>
           )}
 
-          {/* Fallback Catch-All Route Guard */}
+          {/* Teacher routes */}
+          {token && normalizedRole === "teacher" && (
+            <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+          )}
+
+          {/* Catch-all */}
           <Route
             path="*"
             element={
               token ? (
                 normalizedRole === "student" ? (
-                  <Navigate to="/student-redirect" replace />
+                  // ✅ allow staying on /student/:materialId or /materials
+                  location.pathname.startsWith("/student/") ||
+                  location.pathname === "/materials" ? (
+                    <Navigate to={location.pathname} replace />
+                  ) : (
+                    <Navigate to="/student-redirect" replace />
+                  )
+                ) : normalizedRole === "teacher" ? (
+                  <Navigate to="/teacher-dashboard" replace />
                 ) : (
                   <Navigate to="/login" replace />
                 )

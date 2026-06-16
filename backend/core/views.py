@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import io
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.core.files.storage import default_storage
@@ -14,35 +15,44 @@ from google.genai import types
 from config import settings
 from .models import Material, Flashcard, StudentPerformance, User
 from .spacing_engine import process_student_response, get_next_cards_for_student
-from .serializers import UserSerializer, FlashcardSerializer, MaterialSerializer, MaterialCreateSerializer, PerformanceSummarySerializer    
+from .serializers import UserSerializer, FlashcardSerializer, MaterialSerializer, MaterialCreateSerializer
 import docx
 import PyPDF2
 from pptx import Presentation
 from PIL import Image
 import pytesseract
 
+# Explicit import of Supabase client client wrapper layout mapping variables
+from supabase import create_client  
+
 logger = logging.getLogger(__name__)
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
+# Initialize Supabase Connection
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def extract_text_from_file(file_path):
-    """Extract text depending on file type."""
-    ext = os.path.splitext(file_path)[1].lower()
+
+def extract_text_from_file(uploaded_file):
+    """Extract text depending on file type from an uploaded file object or path."""
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
 
     if ext == ".pdf":
         text = ""
-        with open(file_path, "rb") as f:
-            reader = PyPDF2.PdfReader(f)
-            for page in reader.pages:
-                text += page.extract_text() or ""
+        reader = PyPDF2.PdfReader(uploaded_file)
+        for page in reader.pages:
+            text += page.extract_text() or ""
         return text
 
     elif ext == ".docx":
-        doc = docx.Document(file_path)
+        file_stream = io.BytesIO(uploaded_file.read())
+        doc = docx.Document(file_stream)
         return "\n".join([para.text for para in doc.paragraphs])
 
     elif ext == ".pptx":
-        prs = Presentation(file_path)
+        file_stream = io.BytesIO(uploaded_file.read())
+        prs = Presentation(file_stream)
         text = ""
         for slide in prs.slides:
             for shape in slide.shapes:
@@ -51,7 +61,8 @@ def extract_text_from_file(file_path):
         return text
 
     elif ext in [".jpg", ".jpeg", ".png"]:
-        img = Image.open(file_path)
+        file_stream = io.BytesIO(uploaded_file.read())
+        img = Image.open(file_stream)
         return pytesseract.image_to_string(img)
 
     else:
@@ -61,15 +72,12 @@ def extract_text_from_file(file_path):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def student_card_queue(request, material_id):
-    """Retrieve up to 10 cards for review based on mastery tracking.
-       If student has no mastery records yet, serve initial flashcards."""
+    """Retrieve up to 10 cards for review based on mastery tracking."""
     material = get_object_or_404(Material, id=material_id)
     student = request.user
 
-    # Adaptive queue first
     selected_cards = get_next_cards_for_student(student, material=material, limit=10)
 
-    # Fallback for new students or empty queryset
     if not selected_cards or len(selected_cards) == 0:
         selected_cards = Flashcard.objects.filter(material=material).order_by("id")[:10]
 
@@ -91,12 +99,15 @@ def student_card_queue(request, material_id):
 
     return Response({"queue": payload}, status=status.HTTP_200_OK)
 
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def teacher_upload_material(request):
     """Teachers upload lecture materials (text or file) → Gemini generates flashcards."""
+    if request.user.role != "TEACHER":
+        return Response({"error": "Unauthorized. Only teachers can upload materials."}, 
+                        status=status.HTTP_403_FORBIDDEN)
+
     title = request.data.get("title")
     content_text = request.data.get("content")
     uploaded_file = request.FILES.get("file")
@@ -107,118 +118,119 @@ def teacher_upload_material(request):
 
     try:
         if uploaded_file:
-            file_path = default_storage.save(uploaded_file.name, uploaded_file)
-            full_path = default_storage.path(file_path)
-            content_text = extract_text_from_file(full_path)
+            content_text = extract_text_from_file(uploaded_file)
 
-        if not content_text:
-            return Response({"error": "No text could be extracted from the file."},
+        if not content_text or not content_text.strip():
+            return Response({"error": "No text could be extracted from the file/content input."},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        # 1. Save base metadata record to database
+        material = Material.objects.create(
+            title=title or uploaded_file.name,
+            description=f"Uploaded material processed. Size: {len(content_text)} chars.",
+            content_text=content_text,
+            uploaded_by=request.user
+        )
+
+        if uploaded_file:
+            uploaded_file.seek(0)
+            raw_file_bytes = uploaded_file.read()
+            
+            file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+            clean_filename = f"material_{material.id}{file_ext}"
+            supabase_storage_path = f"materials/{clean_filename}"
+            
+            bucket_name = "materials"
+            
+            # 2. Upload file to storage (Will bypass RLS cleanly using the Service Role Key!)
+            supabase.storage.from_(bucket_name).upload(
+                path=supabase_storage_path,
+                file=raw_file_bytes,
+                file_options={"content-type": getattr(uploaded_file, "content_type", "application/octet-stream")}
+            )
+            
+            # Fetch the public URL response object
+            public_url_response = supabase.storage.from_(bucket_name).get_public_url(supabase_storage_path)
+            
+            # ✅ SAFE EXTRACTION: Safely convert response variants into a pure text URL string
+            if isinstance(public_url_response, dict):
+                generated_url = public_url_response.get("publicUrl", "")
+            elif hasattr(public_url_response, "public_url"):
+                generated_url = public_url_response.public_url
+            else:
+                generated_url = str(public_url_response)
+
+            # Assign text value and save cleanly
+            material.file_url = generated_url
+            material.save(update_fields=["file_url"])
+
+        # 3. Fire Gemini LLM call
+        prompt = (
+            f"Generate 5–10 multiple-choice questions (MCQs) from the following material. "
+            f"Each question must have 4 choices (A–D), identify the correct choice, and state the sub-topic.\n\n"
+            f"Study Material:\n{content_text}"
+        )
+
+        response_schema = types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "question": types.Schema(type=types.Type.STRING),
+                    "choice_a": types.Schema(type=types.Type.STRING),
+                    "choice_b": types.Schema(type=types.Type.STRING),
+                    "choice_c": types.Schema(type=types.Type.STRING),
+                    "choice_d": types.Schema(type=types.Type.STRING),
+                    "correct_choice": types.Schema(type=types.Type.STRING),
+                    "sub_topic": types.Schema(type=types.Type.STRING),
+                },
+                required=["question", "choice_a", "choice_b", "choice_c", "choice_d", "correct_choice", "sub_topic"]
+            )
+        )
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=response_schema,
+                temperature=0.2
+            )
+        )
+
+        raw_output = response.text
+        if not raw_output:
+            raise ValueError("Gemini AI generated an empty response payload.")
+
+        generated_cards = json.loads(raw_output)
+
+        flashcards_to_create = [
+            Flashcard(
+                material=material,
+                question=item["question"],
+                choice_a=item["choice_a"],
+                choice_b=item["choice_b"],
+                choice_c=item["choice_c"],
+                choice_d=item["choice_d"],
+                correct_choice=item["correct_choice"].upper().strip(),
+                sub_topic=item["sub_topic"]
+            )
+            for item in generated_cards
+        ]
+
         with transaction.atomic():
-            material = Material.objects.create(
-                title=title or uploaded_file.name,
-                description=f"Uploaded file processed. Size: {len(content_text)} chars.",
-                content_text=content_text,
-                uploaded_by=request.user
-            )
-
-            prompt = (
-                f"Generate 5–10 multiple-choice questions (MCQs) from the following material. "
-                f"Each question must have 4 choices (A–D), identify the correct choice, and state the sub-topic.\n\n"
-                f"Study Material:\n{content_text}"
-            )
-
-            response_schema = types.Schema(
-                type=types.Type.ARRAY,
-                items=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties={
-                        "question": types.Schema(type=types.Type.STRING),
-                        "choice_a": types.Schema(type=types.Type.STRING),
-                        "choice_b": types.Schema(type=types.Type.STRING),
-                        "choice_c": types.Schema(type=types.Type.STRING),
-                        "choice_d": types.Schema(type=types.Type.STRING),
-                        "correct_choice": types.Schema(type=types.Type.STRING),
-                        "sub_topic": types.Schema(type=types.Type.STRING),
-                    },
-                    required=["question", "choice_a", "choice_b", "choice_c", "choice_d", "correct_choice", "sub_topic"]
-                )
-            )
-
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=response_schema,
-                    temperature=0.2
-                )
-            )
-
-            raw_output = response.candidates[0].content.parts[0].text
-            generated_cards = json.loads(raw_output)
-
-            flashcards_to_create = [
-                Flashcard(
-                    material=material,
-                    question=item["question"],
-                    choice_a=item["choice_a"],
-                    choice_b=item["choice_b"],
-                    choice_c=item["choice_c"],
-                    choice_d=item["choice_d"],
-                    correct_choice=item["correct_choice"].upper().strip(),
-                    sub_topic=item["sub_topic"]
-                )
-                for item in generated_cards
-            ]
-
             Flashcard.objects.bulk_create(flashcards_to_create)
 
         return Response({
             "message": "Material uploaded and flashcards created via Gemini AI.",
             "material_id": material.id,
+            "file_url": material.file_url,
             "flashcards_count": len(flashcards_to_create)
         }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
         logger.exception("Failed to process upload")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def student_card_queue(request, material_id):
-    """Retrieve up to 10 cards for review based on mastery tracking.
-       If student has no mastery records yet, serve initial flashcards."""
-    material = get_object_or_404(Material, id=material_id)
-    student = request.user
-
-    # Adaptive queue first
-    selected_cards = get_next_cards_for_student(student, material=material, limit=10)
-
-    # Fallback for new students
-    if not selected_cards:
-        selected_cards = Flashcard.objects.filter(material=material).order_by("id")[:10]
-
-    payload = []
-    for c in selected_cards:
-        perf = StudentPerformance.objects.filter(student=student, flashcard=c).first()
-        payload.append({
-            "id": c.id,
-            "question": c.question,
-            "choices": {
-                "A": c.choice_a,
-                "B": c.choice_b,
-                "C": c.choice_c,
-                "D": c.choice_d
-            },
-            "sub_topic": c.sub_topic,
-            "current_mastery_level": perf.mastery_level if perf else 0
-        })
-
-    return Response({"queue": payload}, status=status.HTTP_200_OK)
-
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -258,14 +270,13 @@ def user_me(request):
     return Response(serializer.data)
 
 
-# -------------------------------
-# FLASHCARD MANAGEMENT ENDPOINTS
-# -------------------------------
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_flashcards(request):
     """List all flashcards (teacher view)."""
+    if request.user.role != "TEACHER":
+        return Response({"error": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+        
     flashcards = Flashcard.objects.all().order_by("-id")
     serializer = FlashcardSerializer(flashcards, many=True)
     return Response({"flashcards": serializer.data}, status=status.HTTP_200_OK)
@@ -275,6 +286,9 @@ def list_flashcards(request):
 @permission_classes([IsAuthenticated])
 def update_flashcard(request, flashcard_id):
     """Update a flashcard (teacher edit)."""
+    if request.user.role != "TEACHER":
+        return Response({"error": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+
     flashcard = get_object_or_404(Flashcard, id=flashcard_id)
     serializer = FlashcardSerializer(flashcard, data=request.data, partial=True)
     if serializer.is_valid():
@@ -282,29 +296,34 @@ def update_flashcard(request, flashcard_id):
         return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def delete_flashcard(request, flashcard_id):
     """Delete a flashcard (teacher delete)."""
+    if request.user.role != "TEACHER":
+        return Response({"error": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+
     flashcard = get_object_or_404(Flashcard, id=flashcard_id)
     flashcard.delete()
     return Response({"message": "Flashcard deleted."}, status=status.HTTP_204_NO_CONTENT)
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_materials(request):
+    """List lecture materials cleanly using MaterialSerializer to preserve file_url."""
     user = request.user
 
     if user.role == "TEACHER":
-        # Teachers only see their own uploads
         materials = Material.objects.filter(uploaded_by=user).order_by("-created_at")
     elif user.role == "STUDENT":
-        # Students see ALL materials uploaded by teachers
         materials = Material.objects.all().order_by("-created_at")
     else:
-        # Fallback: no role → no materials
         materials = Material.objects.none()
 
+    # Pass the data directly through your serializer!
     serializer = MaterialSerializer(materials, many=True)
-    return Response(serializer.data, status=200)
-
+    
+    # CRITICAL: Return serializer.data directly so 'file_url' isn't wrapped or stripped
+    return Response(serializer.data, status=status.HTTP_200_OK)

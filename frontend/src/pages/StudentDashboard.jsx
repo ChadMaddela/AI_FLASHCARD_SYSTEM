@@ -7,6 +7,7 @@ import "../styles/Dashboard.css";
 const StudentDashboard = () => {
   const { materialId } = useParams();
   const [queue, setQueue] = useState([]);
+  const [materialUrl, setMaterialUrl] = useState(""); // ✅ Added state to host original file link
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [selectedChoice, setSelectedChoice] = useState({});
@@ -28,9 +29,26 @@ const StudentDashboard = () => {
         const res = await api.get(`/materials/${materialId}/queue/`, {
           headers: { Authorization: `Bearer ${activeToken}` },
         });
+        
         setQueue(res.data.queue || res.data.flashcards || []);
+
+        // ✅ Extract file url directly if returned by your queue payload, 
+        // else fallback to standard lookup parameters
+        if (res.data.material_file_url) {
+          setMaterialUrl(res.data.material_file_url);
+        } else if (res.data.file_url) {
+          setMaterialUrl(res.data.file_url);
+        } else {
+          // Fallback: Fetch direct details from your material serializer endpoint
+          const materialRes = await api.get(`/materials/${materialId}/`, {
+            headers: { Authorization: `Bearer ${activeToken}` },
+          });
+          if (materialRes.data && materialRes.data.file_url) {
+            setMaterialUrl(materialRes.data.file_url);
+          }
+        }
       } catch (err) {
-        console.error("Failed to fetch queue:", err);
+        console.error("Failed to fetch queue or material source:", err);
       }
     };
     if (materialId) {
@@ -40,7 +58,7 @@ const StudentDashboard = () => {
 
   const handleSubmit = async (flashcardId) => {
     if (!selectedChoice[flashcardId]) return;
-    setLoading(true);
+    loading(true);
     const activeToken = token || localStorage.getItem("token");
     try {
       const res = await api.post(
@@ -65,12 +83,53 @@ const StudentDashboard = () => {
   return (
     <div className="dashboard-hub-wrapper">
       <div className="dashboard-header">
-        <h2>{personalizedName}'s Learning Hub</h2>
-        <p>
-          {queue.length === 0 
-            ? "You are all caught up! No flashcards remaining in this queue area." 
-            : `Welcome back! You have ${queue.length} active review tracks waiting for completion.`}
-        </p>
+        <div className="header-title-row" style={{ display: "flex", justifyContent: "between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: "15px" }}>
+          <div>
+            <h2>{personalizedName}'s Learning Hub</h2>
+            <p>
+              {queue.length === 0 
+                ? "You are all caught up! No flashcards remaining in this queue area." 
+                : `Welcome back! You have ${queue.length} active review tracks waiting for completion.`}
+            </p>
+          </div>
+          
+          {/* ✅ New View Material Action Layout Button Block */}
+          {materialUrl && (
+            <a 
+              href={materialUrl} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="view-material-btn"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                background: "rgba(255, 255, 255, 0.15)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255, 255, 255, 0.25)",
+                color: "#ffffff",
+                textDecoration: "none",
+                fontSize: "0.95rem",
+                fontWeight: "600",
+                transition: "all 0.3s ease",
+                cursor: "pointer",
+                boxShadow: "0 4px 15px rgba(0, 0, 0, 0.1)"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.25)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              📖 View Material
+            </a>
+          )}
+        </div>
       </div>
 
       <div className="dashboard-main-content">

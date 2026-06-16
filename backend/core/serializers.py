@@ -6,22 +6,29 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "username", "email", "role"]
 
+
 class MaterialSerializer(serializers.ModelSerializer):
     class Meta:
         model = Material
-        fields = ["id", "title", "description", "created_at"]
+        # ✅ Confirmed: Explicitly mapping file_url for read operations
+        fields = ["id", "title", "description", "file_url", "created_at"]
+
 
 class MaterialCreateSerializer(serializers.ModelSerializer):
     raw_text = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = Material
-        fields = ["id", "title", "description", "raw_text"]
+        # ✅ FIX: Added 'file_url' here so that when Django returns 
+        # the created object response, the URL path isn't dropped!
+        fields = ["id", "title", "description", "file_url", "raw_text"]
+        read_only_fields = ["file_url"]
 
     def create(self, validated_data):
         raw_text = validated_data.pop("raw_text", "")
         material = Material.objects.create(**validated_data)
         return material, raw_text
+
 
 class FlashcardSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,10 +41,11 @@ class FlashcardSerializer(serializers.ModelSerializer):
             "choice_b",
             "choice_c",
             "choice_d",
-            "correct_choice",   # ✅ Added this field
+            "correct_choice",
             "sub_topic",
-            "created_at",       # ✅ Added timestamp for clarity
+            "created_at",
         ]
+
 
 class PerformanceSummarySerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source="flashcard.question", read_only=True)

@@ -18,6 +18,7 @@ class Material(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     content_text = models.TextField(help_text="Extracted text or presentation text.")
+    file_url = models.URLField(max_length=500, blank=True, null=True)  # ✅ Supabase public link
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'TEACHER'})
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -46,7 +47,6 @@ class StudentPerformance(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'STUDENT'}, related_name='performances')
     flashcard = models.ForeignKey(Flashcard, on_delete=models.CASCADE, related_name='student_history')
 
-    # Match field names to views.py
     attempts_count = models.IntegerField(default=0)
     correct_attempts_count = models.IntegerField(default=0)
     mastery_level = models.IntegerField(default=0, help_text="Range 0 (Struggling) to 5 (Mastered)")

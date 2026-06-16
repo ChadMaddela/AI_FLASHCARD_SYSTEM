@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import "../styles/NavBar.css";
 
 function NavBar() {
-  const { token, setToken, setRole } = useContext(AuthContext);
+  const { token, role, setToken, setRole } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -16,6 +16,8 @@ function NavBar() {
     navigate("/login");
   };
 
+  const normalizedRole = role ? role.toLowerCase() : "";
+
   return (
     <nav className="navbar-container">
       {/* Brand Heading Left side alignment */}
@@ -23,7 +25,23 @@ function NavBar() {
         <h1>AI Flashcard System</h1>
       </div>
 
-      {/* Far Right Action Items Group (Pushes actions to the absolute right corner) */}
+      {/* Center navigation links */}
+      <div className="navbar-links-section">
+        {token && normalizedRole === "student" && (
+          <>
+            <Link to="/student-dashboard" className="nav-link">Dashboard</Link>
+            <Link to="/materials" className="nav-link">Materials</Link> {/* ✅ new tab */}
+          </>
+        )}
+        {token && normalizedRole === "teacher" && (
+          <>
+            <Link to="/teacher-dashboard" className="nav-link">Dashboard</Link>
+            <Link to="/upload" className="nav-link">Upload</Link>
+          </>
+        )}
+      </div>
+
+      {/* Far Right Action Items Group */}
       <div className="navbar-actions-section">
         {!token ? (
           <Link to="/login" className="login-link-btn">Login</Link>
