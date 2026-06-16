@@ -3,26 +3,34 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-fallback-key")
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# 1. Force Production-safe DEBUG configurations
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-# Safely parse ALLOWED_HOSTS from env string
+# 2. Hardened ALLOWED_HOSTS (Ensures both Render and Vercel are trusted by the Django core)
+ALLOWED_HOSTS = [
+    "ai-flashcard-system.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
+
+# Safely append extra hosts if provided via environment variables
 ALLOWED_HOSTS_RAW = os.getenv("ALLOWED_HOSTS", "")
-ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_RAW.split(",") if host.strip()] if ALLOWED_HOSTS_RAW else ["localhost", "127.0.0.1"]
+if ALLOWED_HOSTS_RAW:
+    for host in ALLOWED_HOSTS_RAW.split(","):
+        clean_host = host.strip().replace("https://", "").replace("http://", "")
+        if clean_host and clean_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(clean_host)
 
 
 # Application definition
 INSTALLED_APPS = [
-    "corsheaders",   # CRITICAL: Keep corsheaders at the very top of application definitions
+    "corsheaders",   
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -34,9 +42,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",   # CRITICAL: Must be at the very top to intercept OPTIONS preflights
+    "corsheaders.middleware.CorsMiddleware",   # Crucial: Must be at the very top!
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware", # Handles your static files on Render
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -64,20 +72,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-
-# Database (Supabase session pooler)
 DATABASES = {
     "default": dj_database_url.config(
         default=os.getenv("DATABASE_URL")
     )
 }
 
-
-# Custom user model
 AUTH_USER_MODEL = "core.User"
 
-
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -85,15 +87,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
-# Internationalization
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-
-# Static files
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
@@ -102,7 +100,6 @@ STORAGES = {
     },
 }
 
-# REST Framework + JWT
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -112,27 +109,26 @@ REST_FRAMEWORK = {
     ),
 }
 
-
-# CORS configuration parameters
+# 3. Comprehensive CORS & Header configurations
 CORS_ALLOW_CREDENTIALS = True
 
+# Fallback lists containing your Vercel address directly to prevent environment parsing failures
+CORS_ALLOWED_ORIGINS = [
+    "https://ai-flashcard-system.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 CORS_ALLOWED_ORIGINS_RAW = os.getenv("CORS_ALLOWED_ORIGINS", "")
-
 if CORS_ALLOWED_ORIGINS_RAW:
-    # Safely strip whitespace from environmental origins array parsing
-    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS_RAW.split(",") if origin.strip()]
-else:
-    # Reliable local development fallback lists
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:4000",
-        "http://127.0.0.1:4000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    for origin in CORS_ALLOWED_ORIGINS_RAW.split(","):
+        clean_origin = origin.strip()
+        if clean_origin and clean_origin not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(clean_origin)
 
-# Explicitly permit Auth headers to prevent CORS blocking during dynamic requests
+# Explicitly ensure JWT/Authorization Headers are permitted across the network
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -145,6 +141,4 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
-
-# Google Gemini AI Integration Configuration Settings
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
