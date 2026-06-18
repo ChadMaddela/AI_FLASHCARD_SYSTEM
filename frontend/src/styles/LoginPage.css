@@ -51,7 +51,8 @@ body {
 
 /* Inputs */
 .login-container input[type="text"],
-.login-container input[type="password"] {
+.login-container input[type="password"],
+.login-container input[type="email"] {
   width: 100%;
   padding: 0.75rem;
   margin-bottom: 1rem;
@@ -124,18 +125,8 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Mobile tweaks */
-@media (max-width: 480px) {
-  .login-container {
-    padding: 1.5rem;
-  }
-  .login-container h1 {
-    font-size: 1.5rem;
-  }
-}
-
+/* Password wrapper */
 .password-wrapper {
-  position: relative;
   display: flex;
   align-items: center;
 }
@@ -146,16 +137,24 @@ body {
 
 .toggle-password {
   margin-left: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: #444;
-  color: #f5f5f5;
+  background: transparent;
   border: none;
-  border-radius: 6px;
+  font-size: 1.2rem; /* bigger for eye icon */
   cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.3s;
+  color: #f5f5f5;
+  transition: transform 0.2s;
 }
 
 .toggle-password:hover:not(:disabled) {
-  background: #666;
+  transform: scale(1.2);
+}
+
+/* Mobile tweaks */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 1.5rem;
+  }
+  .login-container h1 {
+    font-size: 1.5rem;
+  }
 }

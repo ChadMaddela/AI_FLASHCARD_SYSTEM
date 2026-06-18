@@ -72,14 +72,26 @@ def extract_text_from_file(uploaded_file):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def student_card_queue(request, material_id):
-    """Retrieve up to 10 cards for review based on mastery tracking."""
+    """Retrieve up to 10 cards for review based on mastery tracking and an optional sub-topic filter."""
     material = get_object_or_404(Material, id=material_id)
     student = request.user
+    
+    # 🎛️ Extract sub_topic filter from request query string
+    sub_topic_filter = request.query_params.get("sub_topic", None)
 
+    # Pull basic list using your spacing configuration tracking function
     selected_cards = get_next_cards_for_student(student, material=material, limit=10)
 
+    # If queue is empty or a topic filter is actively selected, construct the filtered dataset safely
     if not selected_cards or len(selected_cards) == 0:
-        selected_cards = Flashcard.objects.filter(material=material).order_by("id")[:10]
+        card_queryset = Flashcard.objects.filter(material=material)
+        if sub_topic_filter:
+            card_queryset = card_queryset.filter(sub_topic=sub_topic_filter)
+        selected_cards = card_queryset.order_by("id")[:10]
+    elif sub_topic_filter:
+        # Re-fetch targeted sub_topics to ensure we load a full set of 10 items for this specific topic
+        card_queryset = Flashcard.objects.filter(material=material, sub_topic=sub_topic_filter)
+        selected_cards = card_queryset.order_by("id")[:10]
 
     payload = []
     for c in selected_cards:
@@ -97,7 +109,19 @@ def student_card_queue(request, material_id):
             "current_mastery_level": perf.mastery_level if perf else 0
         })
 
-    return Response({"queue": payload}, status=status.HTTP_200_OK)
+    # 🗂️ Pull unique string tags directly from the material to populate navigation pills dynamically
+    all_sub_topics = list(
+        Flashcard.objects.filter(material=material)
+        .values_list("sub_topic", flat=True)
+        .distinct()
+    )
+    # Clean up empty strings or null entries safely
+    all_sub_topics = [topic for topic in all_sub_topics if topic]
+
+    return Response({
+        "queue": payload,
+        "available_topics": all_sub_topics
+    }, status=status.HTTP_200_OK)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -232,6 +256,7 @@ def teacher_upload_material(request):
         logger.exception("Failed to process upload")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def submit_answer(request):
@@ -322,8 +347,57 @@ def list_materials(request):
     else:
         materials = Material.objects.none()
 
-    # Pass the data directly through your serializer!
     serializer = MaterialSerializer(materials, many=True)
-    
-    # CRITICAL: Return serializer.data directly so 'file_url' isn't wrapped or stripped
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_material(request, material_id):
+    """Delete lecture material record, cascaded flashcards, and remove asset from Supabase bucket."""
+    if request.user.role != "TEACHER":
+        return Response({"error": "Unauthorized. Only teachers can manage storage lifecycles."}, 
+                        status=status.HTTP_403_FORBIDDEN)
+
+    material = get_object_or_404(Material, id=material_id)
+
+    try:
+        # If a file link exists, parse out its name to purge the asset from Supabase storage
+        if material.file_url:
+            bucket_name = "materials"
+            # Target the trailing segment after the bucket key identification route string
+            filename = material.file_url.split(f"storage/v1/object/public/{bucket_name}/")[-1]
+            
+            # If splitting didn't target cleanly, parse standard fallback matching rule layout
+            if "materials/" not in filename:
+                filename = f"materials/{filename.split('/')[-1]}"
+                
+            try:
+                supabase.storage.from_(bucket_name).remove([filename])
+            except Exception as bucket_err:
+                logger.warning(f"Storage bucket drop warning or bypassed file skip trace: {str(bucket_err)}")
+
+        # Drop DB object row cleanly (Cascades down to clean performance trackers/flashcards automatically)
+        material.delete()
+        return Response({"message": "Material and storage bucket payload cleanly removed."}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.exception("Failed to execute material storage destruction lifecycles")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def material_flashcards(request, material_id):
+    flashcards = Flashcard.objects.filter(material_id=material_id)
+    serializer = FlashcardSerializer(flashcards, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_flashcard(request, material_id):
+    serializer = FlashcardSerializer(data={**request.data, "material": material_id})
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data, status=201)

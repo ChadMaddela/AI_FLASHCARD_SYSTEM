@@ -2,28 +2,30 @@ import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
-import "../styles/LoginPage.css"; 
+import "../styles/LoginPage.css";
 
 const LoginPage = () => {
   const { setToken, setRole, setUsernameState } = useContext(AuthContext);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // ✅ loading state
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true); // ✅ show loading state
+    setLoading(true);
     try {
-      // Request JWT Token
+      // Request JWT token
       const res = await api.post("token/", { username, password });
       const { access } = res.data;
       localStorage.setItem("token", access);
 
       // Fetch user profile
-      const userRes = await api.get("user/me/");
+      const userRes = await api.get("user/me/", {
+        headers: { Authorization: `Bearer ${access}` },
+      });
       const role = userRes.data.role;
       const finalName =
         userRes.data.first_name ||
@@ -34,34 +36,16 @@ const LoginPage = () => {
       localStorage.setItem("role", role);
       localStorage.setItem("username", finalName);
 
-      // Update Context
+      // Update context
       setToken(access);
       setRole(role);
-      if (setUsernameState) {
-        setUsernameState(finalName);
-      }
+      if (setUsernameState) setUsernameState(finalName);
 
-      // Route users programmatically
+      // ✅ Route to clean dashboard — StudentDashboard handles material
+      //    selection internally; no materialId baked into the URL here.
       const normalizedRole = role ? role.toLowerCase() : "";
       if (normalizedRole === "student") {
-        try {
-          // Fetch materials to get first materialId
-          const materialsRes = await api.get("materials/", {
-            headers: { Authorization: `Bearer ${access}` },
-          });
-          const data = Array.isArray(materialsRes.data)
-            ? materialsRes.data
-            : materialsRes.data.materials || [];
-
-          if (data.length > 0 && data[0].id) {
-            navigate(`/student/${data[0].id}`, { replace: true });
-          } else {
-            navigate("/no-materials", { replace: true });
-          }
-        } catch (err) {
-          console.error("Failed to fetch student materials:", err);
-          navigate("/no-materials", { replace: true });
-        }
+        navigate("/dashboard", { replace: true });
       } else if (normalizedRole === "teacher") {
         navigate("/teacher-dashboard", { replace: true });
       } else {
@@ -71,7 +55,7 @@ const LoginPage = () => {
       console.error("Login failure debug details:", err);
       setError("Invalid username or password");
     } finally {
-      setLoading(false); // ✅ reset loading state
+      setLoading(false);
     }
   };
 
@@ -85,7 +69,7 @@ const LoginPage = () => {
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          disabled={loading} // ✅ disable while loading
+          disabled={loading}
         />
         <input
           type="password"
@@ -95,7 +79,7 @@ const LoginPage = () => {
           disabled={loading}
         />
         <button type="submit" disabled={loading}>
-          {loading ? "LOGGING IN..." : "Log In"} {/* ✅ dynamic label */}
+          {loading ? "LOGGING IN..." : "Log In"}
         </button>
       </form>
     </div>

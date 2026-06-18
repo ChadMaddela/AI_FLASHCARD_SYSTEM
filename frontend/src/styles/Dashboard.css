@@ -94,7 +94,7 @@
   font-weight: 500;
   color: #ffffff;
   line-height: 1.6;
-  margin: 0 0 1.75rem 0;
+  margin: 0;
 }
 
 /* Clean Choice Layout Buttons Setup */
@@ -388,4 +388,192 @@
 .file-input::-webkit-file-upload-button:hover,
 .file-input::file-selector-button:hover {
   background: #2f384c;
+}
+
+/* ==========================================================================
+   Teacher Clean Control Deck Layout Adjustments (Single Row Action Alignment)
+   ========================================================================== */
+
+/* 1. Widened Card Grid Layout Wrapper */
+.grid-hub-container {
+  display: grid;
+  /* Shifted minmax boundary from 420px to 460px to give the cards more horizontal breathing room */
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+  gap: 2rem;
+  flex: 1;
+  width: 100%;
+}
+
+.premium-clean-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 200px !important;
+  background: #141822;
+  border: 1px solid #222938;
+  border-radius: 20px;
+  padding: 2.25rem;
+}
+
+.clean-title-heading {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+/* Force everything strictly into one single row distributed evenly */
+.material-actions-row-layout {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem; /* Margins widened to space items beautifully */
+  width: 100%;
+  margin-top: auto;
+}
+
+/* Base button properties for rows */
+.material-actions-row-layout > button {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 4px !important; /* Minimal defensive edge margin padding */
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  white-space: nowrap;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   TEXT CONTRAST, SIDEBAR MATCHING, & HOVER TRANSITIONS FIXED
+   ========================================================================== */
+
+/* 2. Global Definition for Gradient Buttons (Row Controls & Left Sidebar Upload Button) */
+.material-actions-row-layout .submit-button,
+.analytics-reveal-panel .submit-button {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+  color: #0d1117 !important; /* Uniform text contrast across both sections */
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  height: 40px !important; /* Matches height dimensions perfectly */
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover effects updated for all master blue buttons */
+.material-actions-row-layout .submit-button:hover:not(:disabled),
+.analytics-reveal-panel .submit-button:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  filter: brightness(1.15) !important;
+  box-shadow: 0 6px 20px rgba(0, 242, 254, 0.35) !important;
+}
+
+.material-actions-row-layout .submit-button:active:not(:disabled),
+.analytics-reveal-panel .submit-button:active:not(:disabled) {
+  transform: translateY(0) !important;
+}
+
+/* 3. Red-Bordered Danger Delete Button Styling */
+.material-actions-row-layout .material-danger-delete-btn {
+  background: rgba(224, 86, 86, 0.1) !important;
+  color: #ff6b6b !important;
+  border: 1px solid rgba(224, 86, 86, 0.4) !important;
+}
+
+.material-actions-row-layout .material-danger-delete-btn:hover {
+  background: #e05656 !important;
+  color: #ffffff !important;
+  border-color: #e05656 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(224, 86, 86, 0.3);
+}
+
+/* 4. Handling Absent/Null Files Safely */
+.material-actions-row-layout .disabled-btn {
+  background: #232a3b !important;
+  color: #64748b !important;
+  border: 1px solid #283146 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Responsive fallback handling for smaller displays */
+@media (max-width: 680px) {
+  .material-actions-row-layout {
+    flex-wrap: wrap;
+  }
+  .material-actions-row-layout > button {
+    flex: calc(50% - 0.38rem);
+  }
+}
+
+/* ==========================================================================
+   Dynamic Topic Filter Pill Navigation System
+   ========================================================================== */
+
+.topic-filter-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.topic-filter-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #8a99ad;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.topic-pills-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.topic-filter-pill {
+  background: #1b212f;
+  border: 1px solid #283146;
+  color: #cbd5e1;
+  padding: 0.5rem 1.25rem;
+  border-radius: 20px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.topic-filter-pill:hover {
+  background: #232a3b;
+  border-color: #4a5775;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.topic-filter-pill.active {
+  background: rgba(79, 172, 254, 0.12) !important;
+  border-color: #4facfe !important;
+  color: #4facfe !important;
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(79, 172, 254, 0.15);
 }

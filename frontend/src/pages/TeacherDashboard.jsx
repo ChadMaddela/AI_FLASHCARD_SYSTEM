@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 import "../styles/Dashboard.css";
@@ -10,33 +11,32 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(false);
 
   const { token, usernameState } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  // Safely guarantee proper name capitalize formats
   const activeName = usernameState || localStorage.getItem("username") || "Teacher";
   const firstName = activeName.split(/[_ ]/)[0];
   const personalizedName =
     firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 
-  // Normalize API response to avoid crashes
   const normalizeMaterials = (data) => {
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.materials)) return data.materials;
     return [];
   };
 
-  // Fetch materials on load
+  const fetchMaterials = async () => {
+    try {
+      const res = await api.get("/materials/", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMaterials(normalizeMaterials(res.data));
+    } catch (err) {
+      console.error("Failed to fetch materials:", err);
+      setMaterials([]);
+    }
+  };
+
   useEffect(() => {
-    const fetchMaterials = async () => {
-      try {
-        const res = await api.get("/materials/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setMaterials(normalizeMaterials(res.data));
-      } catch (err) {
-        console.error("Failed to fetch materials:", err);
-        setMaterials([]); // prevent blank screen
-      }
-    };
     if (token) {
       fetchMaterials();
     }
@@ -59,18 +59,35 @@ const TeacherDashboard = () => {
 
       alert("Upload successful! Flashcards generated.");
 
-      // Refresh materials list
-      const updated = await api.get("/materials/", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setMaterials(normalizeMaterials(updated.data));
       setTitle("");
       setFile(null);
+      fetchMaterials(); // Reload the list
     } catch (err) {
       console.error("Upload failed:", err);
       alert("Upload failed: " + (err.response?.data?.error || "Network Error"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handles dynamic deletion of db entries and linked cloud storage bucket files
+  const handleDeleteMaterial = async (materialId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to permanently delete this material module, its flashcards, and remove its file from the storage bucket?"
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/materials/${materialId}/delete/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Instantly optimize local UI state array
+      setMaterials(materials.filter((m) => m.id !== materialId));
+      alert("Material successfully removed from storage bucket.");
+    } catch (err) {
+      console.error("Failed to delete material:", err);
+      alert("Failed to delete material: " + (err.response?.data?.error || "Server Error"));
     }
   };
 
@@ -82,13 +99,12 @@ const TeacherDashboard = () => {
       </div>
 
       <div className="dashboard-main-content">
-        {/* Left Panel: Upload Form */}
+        {/* Upload Form Sidebar */}
         <div className="analytics-reveal-panel">
           <div className="panel-badge blue-accent">Upload Module</div>
           <h3>Generate Flashcards</h3>
           <p className="correction-text">
-            Upload your lecture text or files. Gemini will automatically extract
-            concepts into multiple-choice questions.
+            Upload your lecture files (pdf, docx, pptx) to generate adaptive flashcard decks for your students.
           </p>
 
           <form onSubmit={handleUpload} className="upload-form-flex">
@@ -118,7 +134,7 @@ const TeacherDashboard = () => {
           </form>
         </div>
 
-        {/* Right Panel: Materials List */}
+        {/* Dynamic Materials Card Stream Grid */}
         <div className="grid-hub-container">
           {materials.length === 0 ? (
             <div className="empty-state-card">
@@ -131,29 +147,46 @@ const TeacherDashboard = () => {
             </div>
           ) : (
             materials.map((m) => (
-              <div className="hub-card" key={m.id}>
-                <div className="card-top-row">
-                  <span className="card-badge blue-accent">Active Deck</span>
-                  <span className="mastery-indicator">ID: {m.id}</span>
-                </div>
-
+              <div className="hub-card premium-clean-card" key={m.id}>
                 <div className="card-question-text">
-                  <p>{m.title}</p>
+                  <p className="clean-title-heading">{m.title}</p>
                 </div>
 
-                <p className="correction-text" style={{ marginBottom: "auto" }}>
-                  {m.description}
-                </p>
-
-                <div className="card-footer-row">
-                  <p className="topic-meta-text">
-                    Uploaded by: <span>{m.uploaded_by}</span>
-                  </p>
+                {/* Flat Single-Row Action Container */}
+                <div className="material-actions-row-layout">
+                  {/* 1. Delete Button (Far Left) */}
                   <button
-                    className="submit-button"
-                    style={{ padding: "0.5rem 1rem", fontSize: "0.75rem" }}
+                    onClick={() => handleDeleteMaterial(m.id)}
+                    className="material-danger-delete-btn"
                   >
-                    VIEW STATS
+                    🗑️ Delete
+                  </button>
+
+                  {/* 2. Stats Button */}
+                  <button className="submit-button metrics-action-btn">
+                    📊 Stats
+                  </button>
+
+                  {/* 3. View Material Button */}
+                  {m.file_url ? (
+                    <button
+                      onClick={() => window.open(m.file_url, "_blank")}
+                      className="submit-button document-action-btn"
+                    >
+                      📄 Material
+                    </button>
+                  ) : (
+                    <button className="submit-button disabled-btn" disabled>
+                      ❌ No File
+                    </button>
+                  )}
+
+                  {/* 4. View Flashcards Button (Far Right) */}
+                  <button
+                    onClick={() => navigate(`/teacher/flashcards/${m.id}`, { state: { materialTitle: m.title } })}
+                    className="submit-button view-cards-btn"
+                  >
+                    Flashcards
                   </button>
                 </div>
               </div>

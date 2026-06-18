@@ -18,26 +18,20 @@ const MaterialsPage = () => {
         const res = await api.get("/materials/", {
           headers: { Authorization: `Bearer ${activeToken}` },
         });
-        
+
         const rawData = Array.isArray(res.data) ? res.data : res.data.materials || [];
-        
-        // Hardening: Normalize data properties coming from Django/Supabase
+
+        // Normalize file_url whether it comes back as a string or nested object
         const sanitizedData = rawData.map((m) => {
           let cleanUrl = null;
-
           if (m.file_url) {
-            // If the URL comes back nested as an object from Supabase JSON string formats, extract the raw string
             if (typeof m.file_url === "object" && m.file_url.publicUrl) {
               cleanUrl = m.file_url.publicUrl;
             } else if (typeof m.file_url === "string" && m.file_url.trim() !== "") {
               cleanUrl = m.file_url;
             }
           }
-
-          return {
-            ...m,
-            file_url: cleanUrl,
-          };
+          return { ...m, file_url: cleanUrl };
         });
 
         setMaterials(sanitizedData);
@@ -47,12 +41,15 @@ const MaterialsPage = () => {
         setLoading(false);
       }
     };
-    
+
     fetchMaterials();
   }, [token]);
 
+  // ✅ Navigate to /dashboard and pass the target materialId via location.state
+  // StudentDashboard reads location.state.selectedMaterialId on mount and
+  // activates that pill + fetches that queue automatically.
   const handlePractice = (materialId) => {
-    navigate(`/student/${materialId}`);
+    navigate("/dashboard", { state: { selectedMaterialId: materialId } });
   };
 
   if (loading) {
@@ -77,7 +74,6 @@ const MaterialsPage = () => {
 
               <div className="material-actions">
                 {m.file_url ? (
-                  /* ✅ Active View Material Button */
                   <a
                     href={m.file_url}
                     target="_blank"
@@ -87,16 +83,15 @@ const MaterialsPage = () => {
                     📄 View Material
                   </a>
                 ) : (
-                  /* ⚠️ Fallback Visual if URL is missing */
-                  <button 
-                    className="view-btn disabled-btn" 
-                    disabled 
-                    title={`Missing file link path asset string layout for record ID: ${m.id}`}
+                  <button
+                    className="view-btn disabled-btn"
+                    disabled
+                    title={`Missing file link for record ID: ${m.id}`}
                   >
                     ❌ No Material File
                   </button>
                 )}
-                
+
                 <button
                   className="practice-btn"
                   onClick={() => handlePractice(m.id)}
