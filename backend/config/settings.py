@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
@@ -142,3 +143,16 @@ CORS_ALLOW_HEADERS = [
 ]
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# --- Celery (background flashcard generation) ---
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_TRACK_STARTED = True
+
+# Run tasks synchronously (no broker/worker needed) under pytest, so the
+# test suite doesn't depend on a running Redis instance.
+CELERY_TASK_ALWAYS_EAGER = "pytest" in sys.modules
+CELERY_TASK_EAGER_PROPAGATES = True

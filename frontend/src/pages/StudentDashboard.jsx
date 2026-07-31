@@ -2,6 +2,9 @@ import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
+import ClozeText from "../components/ClozeText";
+import LoadingScreen from "../components/LoadingScreen";
+import AlertModal from "../components/AlertModal";
 import "../styles/Dashboard.css";
 
 const StudentDashboard = () => {
@@ -13,8 +16,12 @@ const StudentDashboard = () => {
   const [selectedMaterialId, setSelectedMaterialId] = useState("All");
   const [materialUrl, setMaterialUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [alertModal, setAlertModal] = useState({ show: false, type: "success", title: "", message: "" });
   const [result, setResult] = useState(null);
   const [selectedChoice, setSelectedChoice] = useState({});
+  const [revealed, setRevealed] = useState({});
+  const [confidence, setConfidence] = useState({});
 
   const { token, usernameState } = useContext(AuthContext);
 
@@ -104,9 +111,11 @@ const StudentDashboard = () => {
         // Check if MaterialsPage navigated here with a pre-selected material
         const incomingId = location.state?.selectedMaterialId ?? "All";
         setSelectedMaterialId(incomingId);
-        fetchQueue(incomingId, list);
+        await fetchQueue(incomingId, list);
       } catch (err) {
         console.error("Failed to fetch materials:", err);
+      } finally {
+        setPageLoading(false);
       }
     };
 
@@ -124,7 +133,7 @@ const StudentDashboard = () => {
 
   // ── Answer submission ─────────────────────────────────────────────────────
   const handleSubmit = async (flashcardId) => {
-    if (!selectedChoice[flashcardId]) return;
+    if (!selectedChoice[flashcardId] || !confidence[flashcardId]) return;
     setLoading(true);
     const activeToken = token || localStorage.getItem("token");
     try {
@@ -133,6 +142,7 @@ const StudentDashboard = () => {
         {
           flashcard_id: flashcardId,
           selected_choice: selectedChoice[flashcardId],
+          confidence: confidence[flashcardId],
         },
         { headers: { Authorization: `Bearer ${activeToken}` } }
       );
@@ -140,13 +150,65 @@ const StudentDashboard = () => {
       await fetchQueue(selectedMaterialId, materials);
     } catch (err) {
       console.error("Submit failed:", err);
-      alert("Submit failed: " + (err.response?.data?.error || "Network Error"));
+      setAlertModal({
+        show: true, type: "error", title: "Submit Failed",
+        message: err.response?.data?.error || "Network Error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Self-graded recall submission (BASIC cards) ─────────────────────────────
+  const handleGradeSubmit = async (flashcardId, grade) => {
+    setLoading(true);
+    const activeToken = token || localStorage.getItem("token");
+    try {
+      const res = await api.post(
+        "/flashcards/submit/",
+        { flashcard_id: flashcardId, grade, confidence: confidence[flashcardId] },
+        { headers: { Authorization: `Bearer ${activeToken}` } }
+      );
+      setResult(res.data);
+      setRevealed((prev) => ({ ...prev, [flashcardId]: false }));
+      await fetchQueue(selectedMaterialId, materials);
+    } catch (err) {
+      console.error("Grade submit failed:", err);
+      setAlertModal({
+        show: true, type: "error", title: "Submit Failed",
+        message: err.response?.data?.error || "Network Error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Confidence selector (metacognitive self-rating, asked before feedback) ──
+  const renderConfidenceRow = (cardId) => (
+    <div className="confidence-button-row">
+      {[
+        { value: "GUESSING", label: "Guessing" },
+        { value: "UNSURE", label: "Unsure" },
+        { value: "CONFIDENT", label: "Confident" },
+      ].map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={`confidence-btn ${confidence[cardId] === option.value ? "selected" : ""}`}
+          disabled={loading}
+          onClick={() =>
+            setConfidence((prev) => ({ ...prev, [cardId]: option.value }))
+          }
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
+  if (pageLoading) return <LoadingScreen message="Loading your flashcards..." />;
+
   return (
     <div className="dashboard-hub-wrapper">
       <div className="dashboard-header">
@@ -229,17 +291,28 @@ const StudentDashboard = () => {
         {result && (
           <div
             className={`analytics-reveal-panel ${
-              result.is_correct ? "success-tint" : "error-tint"
+              result.card_type === "MCQ"
+                ? (result.is_correct ? "success-tint" : "error-tint")
+                : "neutral-tint"
             }`}
           >
-            <div className="panel-badge">
-              {result.is_correct ? "✓ Correct Evaluation" : "✕ Incorrect Evaluation"}
-            </div>
-            <h3>Evaluation Matrix</h3>
-            <p className="correction-text">
-              <strong>Correct Choice Target:</strong>{" "}
-              <span className="highlight-text">{result.correct_answer}</span>
-            </p>
+            {result.card_type === "MCQ" ? (
+              <>
+                <div className="panel-badge">
+                  {result.is_correct ? "✓ Correct Evaluation" : "✕ Incorrect Evaluation"}
+                </div>
+                <h3>Evaluation Matrix</h3>
+                <p className="correction-text">
+                  <strong>Correct Choice Target:</strong>{" "}
+                  <span className="highlight-text">{result.correct_answer}</span>
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="panel-badge">Recall Graded</div>
+                <h3>Evaluation Matrix</h3>
+              </>
+            )}
 
             <div className="analytics-metrics-grid">
               <div className="metric-box">
@@ -256,6 +329,12 @@ const StudentDashboard = () => {
                 <span className="metric-label">Accuracy Rating</span>
                 <span className="metric-val">
                   {parseFloat(result.analytics.accuracy_percentage).toFixed(1)}%
+                </span>
+              </div>
+              <div className="metric-box">
+                <span className="metric-label">Next Review</span>
+                <span className="metric-val">
+                  {new Date(result.analytics.due_date).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -278,54 +357,140 @@ const StudentDashboard = () => {
             {queue.map((card) => (
               <div className="hub-card" key={card.id}>
                 <div className="card-top-row">
-                  <span className="card-badge blue-accent">Active Flashcard</span>
+                  <span className="card-badge blue-accent">
+                    {card.card_type === "BASIC"
+                      ? "Recall Card"
+                      : card.card_type === "CLOZE"
+                      ? "Cloze Card"
+                      : "Active Flashcard"}
+                  </span>
                   <span className="mastery-indicator">
                     Level {card.current_mastery_level}
                   </span>
                 </div>
 
+                {card.image_url && (
+                  <img src={card.image_url} alt="" className="card-illustration-image" />
+                )}
+
                 <div className="card-question-text">
-                  <p>{card.question}</p>
+                  <p><ClozeText text={card.question} /></p>
                 </div>
 
-                <div className="choice-grid">
-                  {Object.entries(card.choices).map(([letter, text]) => (
-                    <button
-                      key={letter}
-                      className={`choice-button ${
-                        selectedChoice[card.id] === letter ? "selected" : ""
-                      }`}
-                      onClick={() =>
-                        setSelectedChoice((prev) => ({
-                          ...prev,
-                          [card.id]: letter,
-                        }))
-                      }
-                      disabled={loading}
-                    >
-                      <span className="choice-letter">{letter}</span>
-                      <span className="choice-string">{text}</span>
-                    </button>
-                  ))}
-                </div>
+                {["BASIC", "CLOZE"].includes(card.card_type) ? (
+                  revealed[card.id] ? (
+                    <>
+                      <div className="card-answer-text">
+                        <p><strong>Answer:</strong> {card.answer}</p>
+                      </div>
+                      <div className="grade-button-row">
+                        <button
+                          className="grade-btn again-btn"
+                          disabled={loading}
+                          onClick={() => handleGradeSubmit(card.id, "again")}
+                        >
+                          Again
+                        </button>
+                        <button
+                          className="grade-btn hard-btn"
+                          disabled={loading}
+                          onClick={() => handleGradeSubmit(card.id, "hard")}
+                        >
+                          Hard
+                        </button>
+                        <button
+                          className="grade-btn good-btn"
+                          disabled={loading}
+                          onClick={() => handleGradeSubmit(card.id, "good")}
+                        >
+                          Good
+                        </button>
+                        <button
+                          className="grade-btn easy-btn"
+                          disabled={loading}
+                          onClick={() => handleGradeSubmit(card.id, "easy")}
+                        >
+                          Easy
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="topic-meta-text confidence-prompt-label">
+                        How confident are you before seeing the answer?
+                      </p>
+                      {renderConfidenceRow(card.id)}
+                      <div className="card-footer-row">
+                        <p className="topic-meta-text">
+                          Sub-topic: <span>{card.sub_topic}</span>
+                        </p>
+                        <button
+                          className="submit-button"
+                          disabled={loading || !confidence[card.id]}
+                          onClick={() =>
+                            setRevealed((prev) => ({ ...prev, [card.id]: true }))
+                          }
+                        >
+                          SHOW ANSWER
+                        </button>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <div className="choice-grid">
+                      {Object.entries(card.choices).map(([letter, text]) => (
+                        <button
+                          key={letter}
+                          className={`choice-button ${
+                            selectedChoice[card.id] === letter ? "selected" : ""
+                          }`}
+                          onClick={() =>
+                            setSelectedChoice((prev) => ({
+                              ...prev,
+                              [card.id]: letter,
+                            }))
+                          }
+                          disabled={loading}
+                        >
+                          <span className="choice-letter">{letter}</span>
+                          <span className="choice-string">{text}</span>
+                        </button>
+                      ))}
+                    </div>
 
-                <div className="card-footer-row">
-                  <p className="topic-meta-text">
-                    Sub-topic: <span>{card.sub_topic}</span>
-                  </p>
-                  <button
-                    className="submit-button"
-                    onClick={() => handleSubmit(card.id)}
-                    disabled={loading || !selectedChoice[card.id]}
-                  >
-                    {loading ? "PROCESSING..." : "SUBMIT ANSWER"}
-                  </button>
-                </div>
+                    <p className="topic-meta-text confidence-prompt-label">
+                      How confident are you in this answer?
+                    </p>
+                    {renderConfidenceRow(card.id)}
+
+                    <div className="card-footer-row">
+                      <p className="topic-meta-text">
+                        Sub-topic: <span>{card.sub_topic}</span>
+                      </p>
+                      <button
+                        className="submit-button"
+                        onClick={() => handleSubmit(card.id)}
+                        disabled={loading || !selectedChoice[card.id] || !confidence[card.id]}
+                      >
+                        {loading ? "PROCESSING..." : "SUBMIT ANSWER"}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <AlertModal
+        show={alertModal.show}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={() => setAlertModal({ ...alertModal, show: false })}
+      />
     </div>
   );
 };

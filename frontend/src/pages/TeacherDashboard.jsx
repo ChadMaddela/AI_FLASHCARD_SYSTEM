@@ -2,13 +2,20 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
+import LoadingScreen from "../components/LoadingScreen";
+import AlertModal from "../components/AlertModal";
+import ConfirmModal from "../components/ConfirmModal";
 import "../styles/Dashboard.css";
 
 const TeacherDashboard = () => {
   const [materials, setMaterials] = useState([]);
   const [title, setTitle] = useState("");
   const [file, setFile] = useState(null);
+  const [generationMode, setGenerationMode] = useState("MCQ");
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [alertModal, setAlertModal] = useState({ show: false, type: "success", title: "", message: "" });
+  const [confirmModal, setConfirmModal] = useState({ show: false, materialId: null });
 
   const { token, usernameState } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -38,9 +45,24 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     if (token) {
-      fetchMaterials();
+      setPageLoading(true);
+      fetchMaterials().finally(() => setPageLoading(false));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Poll while any material is still generating flashcards in the background.
+  useEffect(() => {
+    const stillProcessing = materials.some((m) => m.generation_status === "PROCESSING");
+    if (!stillProcessing) return;
+
+    const interval = setInterval(() => {
+      fetchMaterials();
+    }, 4000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [materials]);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -49,6 +71,7 @@ const TeacherDashboard = () => {
       const formData = new FormData();
       if (title) formData.append("title", title);
       if (file) formData.append("file", file);
+      formData.append("generation_mode", generationMode);
 
       await api.post("/teacher/upload/", formData, {
         headers: {
@@ -57,26 +80,33 @@ const TeacherDashboard = () => {
         },
       });
 
-      alert("Upload successful! Flashcards generated.");
+      setAlertModal({
+        show: true, type: "success", title: "Upload Successful",
+        message: "Flashcards are generating in the background.",
+      });
 
       setTitle("");
       setFile(null);
       fetchMaterials(); // Reload the list
     } catch (err) {
       console.error("Upload failed:", err);
-      alert("Upload failed: " + (err.response?.data?.error || "Network Error"));
+      setAlertModal({
+        show: true, type: "error", title: "Upload Failed",
+        message: err.response?.data?.error || "Network Error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   // Handles dynamic deletion of db entries and linked cloud storage bucket files
-  const handleDeleteMaterial = async (materialId) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to permanently delete this material module, its flashcards, and remove its file from the storage bucket?"
-    );
-    if (!confirmDelete) return;
+  const triggerDeleteMaterial = (materialId) => {
+    setConfirmModal({ show: true, materialId });
+  };
 
+  const confirmDeleteMaterial = async () => {
+    const materialId = confirmModal.materialId;
+    setConfirmModal({ show: false, materialId: null });
     try {
       await api.delete(`/materials/${materialId}/delete/`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -84,12 +114,20 @@ const TeacherDashboard = () => {
 
       // Instantly optimize local UI state array
       setMaterials(materials.filter((m) => m.id !== materialId));
-      alert("Material successfully removed from storage bucket.");
+      setAlertModal({
+        show: true, type: "success", title: "Material Deleted",
+        message: "Material successfully removed from storage bucket.",
+      });
     } catch (err) {
       console.error("Failed to delete material:", err);
-      alert("Failed to delete material: " + (err.response?.data?.error || "Server Error"));
+      setAlertModal({
+        show: true, type: "error", title: "Deletion Failed",
+        message: err.response?.data?.error || "Server Error",
+      });
     }
   };
+
+  if (pageLoading) return <LoadingScreen message="Loading your materials..." />;
 
   return (
     <div className="dashboard-hub-wrapper">
@@ -128,6 +166,17 @@ const TeacherDashboard = () => {
                 required
               />
             </div>
+            <div className="input-group">
+              <label>Flashcard Type</label>
+              <select
+                className="dark-input"
+                value={generationMode}
+                onChange={(e) => setGenerationMode(e.target.value)}
+              >
+                <option value="MCQ">Multiple Choice</option>
+                <option value="BASIC">Front / Back (Classic Recall)</option>
+              </select>
+            </div>
             <button type="submit" className="submit-button" disabled={loading}>
               {loading ? "PROCESSING AI..." : "UPLOAD MATERIAL"}
             </button>
@@ -150,13 +199,26 @@ const TeacherDashboard = () => {
               <div className="hub-card premium-clean-card" key={m.id}>
                 <div className="card-question-text">
                   <p className="clean-title-heading">{m.title}</p>
+                  {m.generation_status === "PROCESSING" && (
+                    <span className="badge generation-badge processing-badge">
+                      ⏳ Generating flashcards…
+                    </span>
+                  )}
+                  {m.generation_status === "FAILED" && (
+                    <span
+                      className="badge generation-badge failed-badge"
+                      title={m.generation_error || "Flashcard generation failed."}
+                    >
+                      ⚠️ Generation failed
+                    </span>
+                  )}
                 </div>
 
                 {/* Flat Single-Row Action Container */}
                 <div className="material-actions-row-layout">
                   {/* 1. Delete Button (Far Left) */}
                   <button
-                    onClick={() => handleDeleteMaterial(m.id)}
+                    onClick={() => triggerDeleteMaterial(m.id)}
                     className="material-danger-delete-btn"
                   >
                     🗑️ Delete
@@ -181,12 +243,24 @@ const TeacherDashboard = () => {
                     </button>
                   )}
 
-                  {/* 4. View Flashcards Button (Far Right) */}
+                  {/* 4. View Flashcards Button */}
                   <button
                     onClick={() => navigate(`/teacher/flashcards/${m.id}`, { state: { materialTitle: m.title } })}
-                    className="submit-button view-cards-btn"
+                    className={`submit-button view-cards-btn ${m.generation_status === "PROCESSING" ? "disabled-btn" : ""}`}
+                    disabled={m.generation_status === "PROCESSING"}
+                    title={m.generation_status === "PROCESSING" ? "Flashcards are still generating" : undefined}
                   >
                     Flashcards
+                  </button>
+
+                  {/* 5. Manage Quizzes Button (Far Right) */}
+                  <button
+                    onClick={() => navigate(`/teacher/quizzes/${m.id}`, { state: { materialTitle: m.title } })}
+                    className={`submit-button view-cards-btn ${m.generation_status === "PROCESSING" ? "disabled-btn" : ""}`}
+                    disabled={m.generation_status === "PROCESSING"}
+                    title={m.generation_status === "PROCESSING" ? "Flashcards are still generating" : undefined}
+                  >
+                    Quizzes
                   </button>
                 </div>
               </div>
@@ -194,6 +268,23 @@ const TeacherDashboard = () => {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        show={confirmModal.show}
+        danger
+        title="Confirm Deletion"
+        message="Are you sure you want to permanently delete this material module, its flashcards, and remove its file from the storage bucket?"
+        confirmLabel="Yes, Delete"
+        onConfirm={confirmDeleteMaterial}
+        onCancel={() => setConfirmModal({ show: false, materialId: null })}
+      />
+      <AlertModal
+        show={alertModal.show}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={() => setAlertModal({ ...alertModal, show: false })}
+      />
     </div>
   );
 };

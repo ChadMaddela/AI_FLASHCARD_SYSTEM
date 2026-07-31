@@ -23,7 +23,7 @@ function NavBar() {
       {/* Brand Heading Left side alignment - Updated to be a functional home link based on role */}
       <div className="navbar-logo-section">
         <Link 
-          to={token ? (normalizedRole === "teacher" ? "/teacher-dashboard" : "/student-redirect") : "/login"} 
+          to={token ? (normalizedRole === "teacher" ? "/teacher-dashboard" : "/dashboard") : "/login"}
           style={{ textDecoration: 'none', color: 'inherit' }}
         >
           <h1>AI Flashcard System</h1>
@@ -35,15 +35,18 @@ function NavBar() {
         {/* Student Links */}
         {token && normalizedRole === "student" && (
           <>
-            <Link to="/student-dashboard" className="nav-link">Dashboard</Link>
+            <Link to="/dashboard" className="nav-link">Dashboard</Link>
             <Link to="/materials" className="nav-link">Materials</Link>
+            <Link to="/analytics" className="nav-link">My Analytics</Link>
+            <Link to="/quizzes" className="nav-link">Quizzes</Link>
           </>
         )}
-        
+
         {/* Teacher Links - Dashboard and Upload words are completely removed */}
         {token && normalizedRole === "teacher" && (
           <>
-            {/* Kept empty to retain structure layout, or you can add teacher-only links here in the future */}
+            <Link to="/admin/users" className="nav-link">Manage Users</Link>
+            <Link to="/teacher/analytics" className="nav-link">Class Analytics</Link>
           </>
         )}
       </div>

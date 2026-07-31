@@ -577,3 +577,330 @@
   font-weight: 600;
   box-shadow: 0 0 12px rgba(79, 172, 254, 0.15);
 }
+
+/* ==========================================================================
+   Front/Back Recall Cards: reveal-answer & self-graded (Again/Hard/Good/Easy)
+   ========================================================================== */
+
+.neutral-tint .panel-badge { background: rgba(79, 172, 254, 0.1); color: #4facfe; }
+.neutral-tint { border-color: rgba(79, 172, 254, 0.25); }
+
+.card-answer-text {
+  background: #1b212f;
+  border: 1px solid #283146;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-answer-text p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.grade-button-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid #1f2635;
+}
+
+.grade-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #0b0c10;
+}
+
+.grade-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.grade-btn:disabled {
+  background: #232a3b !important;
+  color: #4a5568 !important;
+  cursor: not-allowed;
+}
+
+.cloze-blank {
+  font-weight: 700;
+  color: #4facfe;
+  border-bottom: 2px solid #4facfe;
+  padding: 0 0.15rem;
+}
+
+.card-illustration-image {
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid #283146;
+  background: #1b212f;
+  margin-bottom: 1.25rem;
+  display: block;
+}
+
+.again-btn { background: #f87171; }
+.hard-btn { background: #fbbf24; }
+.good-btn { background: #4facfe; }
+.easy-btn { background: #4ade80; }
+
+/* ==========================================================================
+   Analytics Pages (student self-view, teacher per-student/class view)
+   ========================================================================== */
+
+.analytics-grid-standalone {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: grid;
+  margin-bottom: 2rem;
+}
+
+.analytics-section-block {
+  background: #141822;
+  border: 1px solid #222938;
+  border-radius: 20px;
+  padding: 1.75rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.analytics-section-block h3 {
+  margin: 0 0 1.25rem 0;
+  font-size: 1.15rem;
+  color: #ffffff;
+}
+
+.mastery-distribution-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mastery-distribution-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1b212f;
+  border: 1px solid #232a3b;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+}
+
+.mastery-distribution-label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mastery-distribution-count {
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.analytics-topic-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.analytics-topic-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #232a3b;
+}
+
+.analytics-topic-table td {
+  padding: 0.65rem 0.75rem;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #1f2635;
+}
+
+.analytics-topic-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ==========================================================================
+   Confidence Self-Rating (metacognitive reflection, asked before feedback)
+   ========================================================================== */
+
+.confidence-prompt-label {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem !important;
+}
+
+.confidence-button-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.confidence-btn {
+  background: #1b212f;
+  border: 1px solid #283146;
+  color: #94a3b8;
+  border-radius: 10px;
+  padding: 0.65rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confidence-btn:hover:not(:disabled) {
+  border-color: #4a5775;
+  color: #ffffff;
+}
+
+.confidence-btn.selected {
+  background: rgba(79, 172, 254, 0.12);
+  border-color: #4facfe;
+  color: #4facfe;
+}
+
+.confidence-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Async Flashcard Generation Status Badges (Teacher Dashboard)
+   ========================================================================== */
+
+.generation-badge {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+}
+
+.processing-badge {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  animation: pulseBadge 1.6s ease-in-out infinite;
+}
+
+.failed-badge {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  cursor: help;
+}
+
+@keyframes pulseBadge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ==========================================================================
+   Assessment Reports (TOS / Item Analysis / Competency Mastery)
+   ========================================================================== */
+
+.reports-section-header {
+  margin-top: 2.5rem;
+}
+
+.tos-hours-input-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.tos-table-scroll {
+  overflow-x: auto;
+}
+
+.mastery-remediation-list {
+  list-style: none;
+  margin: 0.5rem 0 0 0;
+  padding: 0;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.report-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.7rem;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.report-badge-easy,
+.report-badge-excellent,
+.report-badge-mastered {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+}
+
+.report-badge-average,
+.report-badge-good,
+.report-badge-closely-approximating-mastery {
+  background: rgba(59, 157, 250, 0.12);
+  color: #3b9dfa;
+}
+
+.report-badge-marginal,
+.report-badge-moving-towards-mastery {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+
+.report-badge-difficult,
+.report-badge-poor,
+.report-badge-low,
+.report-badge-very-low,
+.report-badge-absolutely-no-mastery {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+}
+
+/* ==========================================================================
+   Quiz Sessions (student-facing: available quizzes + quiz taking)
+   ========================================================================== */
+
+.quiz-material-group {
+  margin-bottom: 2.5rem;
+}
+
+.quiz-material-heading {
+  color: #94a3b8;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #222938;
+}
+
+.quiz-submit-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #141822;
+  border: 1px solid #222938;
+  border-radius: 16px;
+  padding: 1.25rem 1.75rem;
+  margin-top: 1.5rem;
+  position: sticky;
+  bottom: 1rem;
+}

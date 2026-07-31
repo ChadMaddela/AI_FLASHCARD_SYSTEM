@@ -149,6 +149,24 @@ body {
   transform: scale(1.2);
 }
 
+/* Register link */
+.register-link-text {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.register-link-text a {
+  color: #4facfe;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.register-link-text a:hover {
+  text-decoration: underline;
+}
+
 /* Mobile tweaks */
 @media (max-width: 480px) {
   .login-container {

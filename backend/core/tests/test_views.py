@@ -61,7 +61,7 @@ def test_teacher_upload_and_flashcards(api_client, teacher_user):
         {"title": "Pytest Material", "content": "Heart pumps blood."},
         format="json"
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 202
     material_id = resp.data["material_id"]
     assert Material.objects.filter(id=material_id).exists()
     assert Flashcard.objects.filter(material_id=material_id).exists()

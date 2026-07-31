@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
+import LoadingScreen from "../components/LoadingScreen";
 import "../styles/MaterialsPage.css";
 
 const MaterialsPage = () => {
@@ -52,13 +53,7 @@ const MaterialsPage = () => {
     navigate("/dashboard", { state: { selectedMaterialId: materialId } });
   };
 
-  if (loading) {
-    return (
-      <div className="materials-container">
-        <p className="no-materials">Loading your presentation tracks...</p>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen message="Loading your presentation tracks..." />;
 
   return (
     <div className="materials-container">

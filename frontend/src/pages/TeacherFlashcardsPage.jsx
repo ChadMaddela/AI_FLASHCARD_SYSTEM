@@ -1,8 +1,27 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
+import ClozeText from "../components/ClozeText";
+import LoadingScreen from "../components/LoadingScreen";
+import AlertModal from "../components/AlertModal";
+import ConfirmModal from "../components/ConfirmModal";
 import "../styles/MaterialsPage.css";
+
+const CARD_TYPE_LABELS = {
+    MCQ: "Multiple Choice",
+    BASIC: "Front / Back",
+    CLOZE: "Cloze Deletion",
+};
+
+const BLOOM_LEVEL_LABELS = {
+    REMEMBERING: "Remembering",
+    UNDERSTANDING: "Understanding",
+    APPLYING: "Applying",
+    ANALYZING: "Analyzing",
+    EVALUATING: "Evaluating",
+    CREATING: "Creating",
+};
 
 const TeacherFlashcardsPage = () => {
     const { token } = useContext(AuthContext);
@@ -36,14 +55,38 @@ const TeacherFlashcardsPage = () => {
 
     // Structured fields to keep our loop clean
     const [newFlashcard, setNewFlashcard] = useState({
-        question: "", 
-        choice_a: "", 
-        choice_b: "", 
+        card_type: "MCQ",
+        question: "",
+        choice_a: "",
+        choice_b: "",
         choice_c: "",
-        choice_d: "", 
+        choice_d: "",
         correct_choice: "", // Handled cleanly via radio selections now
+        answer: "",
         sub_topic: "",
+        bloom_level: "",
     });
+    const [newFlashcardImage, setNewFlashcardImage] = useState(null);
+    const [editImage, setEditImage] = useState(null);
+    const [editRemoveImage, setEditRemoveImage] = useState(false);
+
+    const newQuestionRef = useRef(null);
+    const editQuestionRef = useRef(null);
+
+    // Inserts "_____" at the current cursor position of a cloze sentence textarea.
+    const insertBlankAtCursor = (ref, stateSetter, state) => {
+        const textarea = ref.current;
+        if (!textarea) return;
+        const start = textarea.selectionStart ?? state.question.length;
+        const end = textarea.selectionEnd ?? state.question.length;
+        const newQuestion = state.question.slice(0, start) + "_____" + state.question.slice(end);
+        stateSetter({ ...state, question: newQuestion });
+        requestAnimationFrame(() => {
+            textarea.focus();
+            const cursorPos = start + 5;
+            textarea.setSelectionRange(cursorPos, cursorPos);
+        });
+    };
 
     useEffect(() => {
         const fetchPageData = async () => {
@@ -94,7 +137,7 @@ const TeacherFlashcardsPage = () => {
             return;
         }
 
-        if (!newFlashcard.correct_choice) {
+        if (newFlashcard.card_type === "MCQ" && !newFlashcard.correct_choice) {
             setAlertModal({
                 show: true,
                 type: "error",
@@ -104,27 +147,54 @@ const TeacherFlashcardsPage = () => {
             return;
         }
 
+        if ((newFlashcard.card_type === "BASIC" || newFlashcard.card_type === "CLOZE") && !newFlashcard.answer.trim()) {
+            setAlertModal({
+                show: true,
+                type: "error",
+                title: "Missing Answer",
+                message: newFlashcard.card_type === "CLOZE"
+                    ? "Please provide the word/phrase that fills in the blank."
+                    : "Please provide the back-of-card answer text."
+            });
+            return;
+        }
+
         setIsCreating(true);
         try {
-            const payload = {
-                question: newFlashcard.question,
-                choice_a: newFlashcard.choice_a,
-                choice_b: newFlashcard.choice_b,
-                choice_c: newFlashcard.choice_c,
-                choice_d: newFlashcard.choice_d,
-                correct_choice: newFlashcard.correct_choice.toUpperCase().trim(),
-                sub_topic: newFlashcard.sub_topic
-            };
+            const fields = newFlashcard.card_type === "MCQ"
+                ? {
+                    card_type: "MCQ",
+                    question: newFlashcard.question,
+                    choice_a: newFlashcard.choice_a,
+                    choice_b: newFlashcard.choice_b,
+                    choice_c: newFlashcard.choice_c,
+                    choice_d: newFlashcard.choice_d,
+                    correct_choice: newFlashcard.correct_choice.toUpperCase().trim(),
+                    sub_topic: newFlashcard.sub_topic,
+                    bloom_level: newFlashcard.bloom_level
+                }
+                : {
+                    card_type: newFlashcard.card_type,
+                    question: newFlashcard.question,
+                    answer: newFlashcard.answer,
+                    sub_topic: newFlashcard.sub_topic,
+                    bloom_level: newFlashcard.bloom_level
+                };
 
-            const res = await api.post(`/materials/${materialId}/flashcards/create/`, payload, {
-                headers: { Authorization: `Bearer ${token}` },
+            const formData = new FormData();
+            Object.entries(fields).forEach(([key, value]) => formData.append(key, value));
+            if (newFlashcardImage) formData.append("image", newFlashcardImage);
+
+            const res = await api.post(`/materials/${materialId}/flashcards/create/`, formData, {
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
             });
 
             setFlashcards([...flashcards, res.data]);
             setNewFlashcard({
-                question: "", choice_a: "", choice_b: "", choice_c: "",
-                choice_d: "", correct_choice: "", sub_topic: "",
+                card_type: "MCQ", question: "", choice_a: "", choice_b: "", choice_c: "",
+                choice_d: "", correct_choice: "", answer: "", sub_topic: "", bloom_level: "",
             });
+            setNewFlashcardImage(null);
 
             setAlertModal({
                 show: true,
@@ -149,16 +219,55 @@ const TeacherFlashcardsPage = () => {
     const handleEdit = (flashcard) => {
         setEditingId(flashcard.id);
         setEditData({ ...flashcard });
+        setEditImage(null);
+        setEditRemoveImage(false);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setEditImage(null);
+        setEditRemoveImage(false);
     };
 
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await api.put(`/flashcards/${editingId}/update/`, editData, {
-                headers: { Authorization: `Bearer ${token}` },
+            const fields = editData.card_type === "MCQ"
+                ? {
+                    card_type: "MCQ",
+                    question: editData.question,
+                    choice_a: editData.choice_a,
+                    choice_b: editData.choice_b,
+                    choice_c: editData.choice_c,
+                    choice_d: editData.choice_d,
+                    correct_choice: editData.correct_choice,
+                    sub_topic: editData.sub_topic,
+                    bloom_level: editData.bloom_level,
+                }
+                : {
+                    card_type: editData.card_type,
+                    question: editData.question,
+                    answer: editData.answer,
+                    sub_topic: editData.sub_topic,
+                    bloom_level: editData.bloom_level,
+                };
+
+            const formData = new FormData();
+            Object.entries(fields).forEach(([key, value]) => formData.append(key, value ?? ""));
+            if (editImage) {
+                formData.append("image", editImage);
+            } else if (editRemoveImage) {
+                formData.append("remove_image", "true");
+            }
+
+            const res = await api.put(`/flashcards/${editingId}/update/`, formData, {
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
             });
-            setFlashcards(flashcards.map((f) => (f.id === editingId ? { ...editData } : f)));
+
+            setFlashcards(flashcards.map((f) => (f.id === editingId ? res.data : f)));
             setEditingId(null);
+            setEditImage(null);
+            setEditRemoveImage(false);
 
             setAlertModal({
                 show: true,
@@ -214,7 +323,7 @@ const TeacherFlashcardsPage = () => {
         }
     };
 
-    if (loading) return <div className="flashcards-container"><p>Loading flashcards...</p></div>;
+    if (loading) return <LoadingScreen message="Loading flashcards..." />;
 
     return (
         <div className="flashcards-container">
@@ -225,11 +334,49 @@ const TeacherFlashcardsPage = () => {
                 <div className="new-flashcard-pane">
                     <h3>Create New Flashcard</h3>
                     <div className="form-grid">
-                        
+
+                        {/* 0. Card Type Toggle */}
+                        <div className="form-field-block">
+                            <label>CARD TYPE:</label>
+                            <div className="card-type-toggle">
+                                <button
+                                    type="button"
+                                    disabled={isCreating}
+                                    className={`type-toggle-btn ${newFlashcard.card_type === "MCQ" ? "active-toggle" : ""}`}
+                                    onClick={() => setNewFlashcard({ ...newFlashcard, card_type: "MCQ" })}
+                                >
+                                    Multiple Choice
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isCreating}
+                                    className={`type-toggle-btn ${newFlashcard.card_type === "BASIC" ? "active-toggle" : ""}`}
+                                    onClick={() => setNewFlashcard({ ...newFlashcard, card_type: "BASIC" })}
+                                >
+                                    Front / Back
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isCreating}
+                                    className={`type-toggle-btn ${newFlashcard.card_type === "CLOZE" ? "active-toggle" : ""}`}
+                                    onClick={() => setNewFlashcard({ ...newFlashcard, card_type: "CLOZE" })}
+                                >
+                                    Cloze (Fill in the Blank)
+                                </button>
+                            </div>
+                        </div>
+
                         {/* 1. Question Block */}
                         <div className="form-field-block">
-                            <label>QUESTION:</label>
+                            <label>
+                                {newFlashcard.card_type === "MCQ"
+                                    ? "QUESTION:"
+                                    : newFlashcard.card_type === "CLOZE"
+                                    ? "SENTENCE (USE _____ FOR THE BLANK):"
+                                    : "FRONT (QUESTION):"}
+                            </label>
                             <textarea
+                                ref={newQuestionRef}
                                 name="question"
                                 disabled={isCreating}
                                 rows={3}
@@ -237,46 +384,70 @@ const TeacherFlashcardsPage = () => {
                                 value={newFlashcard.question}
                                 onChange={(e) => handleInputChange(e, setNewFlashcard, newFlashcard)}
                             />
+                            {newFlashcard.card_type === "CLOZE" && (
+                                <button
+                                    type="button"
+                                    disabled={isCreating}
+                                    className="submit-button insert-blank-btn"
+                                    onClick={() => insertBlankAtCursor(newQuestionRef, setNewFlashcard, newFlashcard)}
+                                >
+                                    ➕ Insert Blank
+                                </button>
+                            )}
                         </div>
 
-                        {/* 2. Embedded Radio Choices Block (A, B, C, D) */}
-                        <div className="form-field-block">
-                            <label>CHOICES & CORRECT CORRECT ANSWER:</label>
-                            <div className="choices-radio-group">
-                                {[
-                                    { key: "choice_a", letter: "A" },
-                                    { key: "choice_b", letter: "B" },
-                                    { key: "choice_c", letter: "C" },
-                                    { key: "choice_d", letter: "D" }
-                                ].map((choice) => (
-                                    <div key={choice.key} className="embedded-choice-row">
-                                        <label className="radio-label-wrapper">
-                                            <input 
-                                                type="radio" 
-                                                name="correct_choice" 
-                                                value={choice.letter}
-                                                checked={newFlashcard.correct_choice === choice.letter}
+                        {/* 2. Type-specific Block: MCQ choices OR Basic/Cloze answer */}
+                        {newFlashcard.card_type === "MCQ" ? (
+                            <div className="form-field-block">
+                                <label>CHOICES & CORRECT CORRECT ANSWER:</label>
+                                <div className="choices-radio-group">
+                                    {[
+                                        { key: "choice_a", letter: "A" },
+                                        { key: "choice_b", letter: "B" },
+                                        { key: "choice_c", letter: "C" },
+                                        { key: "choice_d", letter: "D" }
+                                    ].map((choice) => (
+                                        <div key={choice.key} className="embedded-choice-row">
+                                            <label className="radio-label-wrapper">
+                                                <input
+                                                    type="radio"
+                                                    name="correct_choice"
+                                                    value={choice.letter}
+                                                    checked={newFlashcard.correct_choice === choice.letter}
+                                                    disabled={isCreating}
+                                                    onChange={(e) => setNewFlashcard({ ...newFlashcard, correct_choice: e.target.value })}
+                                                    className="hidden-radio-input"
+                                                />
+                                                <div className={`radio-custom-bubble ${newFlashcard.correct_choice === choice.letter ? "active-bubble-select" : ""}`}>
+                                                    {choice.letter}
+                                                </div>
+                                            </label>
+                                            <input
+                                                name={choice.key}
+                                                type="text"
                                                 disabled={isCreating}
-                                                onChange={(e) => setNewFlashcard({ ...newFlashcard, correct_choice: e.target.value })}
-                                                className="hidden-radio-input"
+                                                placeholder={`Type Choice ${choice.letter} here...`}
+                                                className="dark-input-box choices-inline-input"
+                                                value={newFlashcard[choice.key]}
+                                                onChange={(e) => handleInputChange(e, setNewFlashcard, newFlashcard)}
                                             />
-                                            <div className={`radio-custom-bubble ${newFlashcard.correct_choice === choice.letter ? "active-bubble-select" : ""}`}>
-                                                {choice.letter}
-                                            </div>
-                                        </label>
-                                        <input
-                                            name={choice.key}
-                                            type="text"
-                                            disabled={isCreating}
-                                            placeholder={`Type Choice ${choice.letter} here...`}
-                                            className="dark-input-box choices-inline-input"
-                                            value={newFlashcard[choice.key]}
-                                            onChange={(e) => handleInputChange(e, setNewFlashcard, newFlashcard)}
-                                        />
-                                    </div>
-                                ))}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="form-field-block">
+                                <label>{newFlashcard.card_type === "CLOZE" ? "ANSWER (THE HIDDEN WORD/PHRASE):" : "ANSWER (BACK OF CARD):"}</label>
+                                <textarea
+                                    name="answer"
+                                    disabled={isCreating}
+                                    rows={3}
+                                    className="dark-textarea"
+                                    value={newFlashcard.answer}
+                                    onChange={(e) => handleInputChange(e, setNewFlashcard, newFlashcard)}
+                                />
+                            </div>
+                        )}
 
                         {/* 3. Sub Topic Field */}
                         <div className="form-field-block">
@@ -290,6 +461,53 @@ const TeacherFlashcardsPage = () => {
                                 value={newFlashcard.sub_topic}
                                 onChange={(e) => handleInputChange(e, setNewFlashcard, newFlashcard)}
                             />
+                        </div>
+
+                        {/* 3b. Bloom's Taxonomy Level (optional, teacher-only) */}
+                        <div className="form-field-block">
+                            <label>BLOOM'S TAXONOMY LEVEL (OPTIONAL — NOT SHOWN TO STUDENTS):</label>
+                            <select
+                                name="bloom_level"
+                                disabled={isCreating}
+                                className="dark-input-box"
+                                value={newFlashcard.bloom_level}
+                                onChange={(e) => handleInputChange(e, setNewFlashcard, newFlashcard)}
+                            >
+                                <option value="">Not set</option>
+                                {Object.entries(BLOOM_LEVEL_LABELS).map(([value, label]) => (
+                                    <option key={value} value={value}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* 4. Image (optional) */}
+                        <div className="form-field-block">
+                            <label>IMAGE (OPTIONAL):</label>
+                            {newFlashcardImage ? (
+                                <div className="flashcard-image-preview-wrapper">
+                                    <img
+                                        src={URL.createObjectURL(newFlashcardImage)}
+                                        alt="Selected preview"
+                                        className="flashcard-image-preview"
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={isCreating}
+                                        className="submit-button delete-btn remove-image-btn"
+                                        onClick={() => setNewFlashcardImage(null)}
+                                    >
+                                        🗑️ Remove Selected Image
+                                    </button>
+                                </div>
+                            ) : (
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    disabled={isCreating}
+                                    className="dark-input-box"
+                                    onChange={(e) => setNewFlashcardImage(e.target.files?.[0] || null)}
+                                />
+                            )}
                         </div>
 
                     </div>
@@ -312,11 +530,49 @@ const TeacherFlashcardsPage = () => {
                             <div key={f.id} className="premium-flashcard-card">
                                 {editingId === f.id ? (
                                     <div className="edit-form form-grid">
-                                        
+
+                                        {/* Edit Card Type Toggle */}
+                                        <div className="form-field-block">
+                                            <label>CARD TYPE:</label>
+                                            <div className="card-type-toggle">
+                                                <button
+                                                    type="button"
+                                                    disabled={isSaving}
+                                                    className={`type-toggle-btn ${editData.card_type === "MCQ" ? "active-toggle" : ""}`}
+                                                    onClick={() => setEditData({ ...editData, card_type: "MCQ" })}
+                                                >
+                                                    Multiple Choice
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={isSaving}
+                                                    className={`type-toggle-btn ${editData.card_type === "BASIC" ? "active-toggle" : ""}`}
+                                                    onClick={() => setEditData({ ...editData, card_type: "BASIC" })}
+                                                >
+                                                    Front / Back
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={isSaving}
+                                                    className={`type-toggle-btn ${editData.card_type === "CLOZE" ? "active-toggle" : ""}`}
+                                                    onClick={() => setEditData({ ...editData, card_type: "CLOZE" })}
+                                                >
+                                                    Cloze (Fill in the Blank)
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         {/* Edit Question */}
                                         <div className="form-field-block">
-                                            <label>QUESTION:</label>
+                                            <label>
+                                                {editData.card_type === "MCQ"
+                                                    ? "QUESTION:"
+                                                    : editData.card_type === "CLOZE"
+                                                    ? "SENTENCE (USE _____ FOR THE BLANK):"
+                                                    : "FRONT (QUESTION):"}
+                                            </label>
                                             <textarea
+                                                ref={editQuestionRef}
                                                 name="question"
                                                 disabled={isSaving}
                                                 rows={3}
@@ -324,45 +580,69 @@ const TeacherFlashcardsPage = () => {
                                                 value={editData.question || ""}
                                                 onChange={(e) => handleInputChange(e, setEditData, editData)}
                                             />
+                                            {editData.card_type === "CLOZE" && (
+                                                <button
+                                                    type="button"
+                                                    disabled={isSaving}
+                                                    className="submit-button insert-blank-btn"
+                                                    onClick={() => insertBlankAtCursor(editQuestionRef, setEditData, editData)}
+                                                >
+                                                    ➕ Insert Blank
+                                                </button>
+                                            )}
                                         </div>
 
-                                        {/* Edit Choices Row Embedded */}
-                                        <div className="form-field-block">
-                                            <label>CHOICES & CORRECT RESPONSE:</label>
-                                            <div className="choices-radio-group">
-                                                {[
-                                                    { key: "choice_a", letter: "A" },
-                                                    { key: "choice_b", letter: "B" },
-                                                    { key: "choice_c", letter: "C" },
-                                                    { key: "choice_d", letter: "D" }
-                                                ].map((choice) => (
-                                                    <div key={choice.key} className="embedded-choice-row">
-                                                        <label className="radio-label-wrapper">
-                                                            <input 
-                                                                type="radio" 
-                                                                name="edit_correct_choice" 
-                                                                value={choice.letter}
-                                                                checked={editData.correct_choice?.toUpperCase() === choice.letter}
+                                        {/* Edit Type-specific Block: MCQ choices OR Basic/Cloze answer */}
+                                        {editData.card_type === "MCQ" ? (
+                                            <div className="form-field-block">
+                                                <label>CHOICES & CORRECT RESPONSE:</label>
+                                                <div className="choices-radio-group">
+                                                    {[
+                                                        { key: "choice_a", letter: "A" },
+                                                        { key: "choice_b", letter: "B" },
+                                                        { key: "choice_c", letter: "C" },
+                                                        { key: "choice_d", letter: "D" }
+                                                    ].map((choice) => (
+                                                        <div key={choice.key} className="embedded-choice-row">
+                                                            <label className="radio-label-wrapper">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="edit_correct_choice"
+                                                                    value={choice.letter}
+                                                                    checked={editData.correct_choice?.toUpperCase() === choice.letter}
+                                                                    disabled={isSaving}
+                                                                    onChange={(e) => setEditData({ ...editData, correct_choice: e.target.value })}
+                                                                    className="hidden-radio-input"
+                                                                />
+                                                                <div className={`radio-custom-bubble ${editData.correct_choice?.toUpperCase() === choice.letter ? "active-bubble-select" : ""}`}>
+                                                                    {choice.letter}
+                                                                </div>
+                                                            </label>
+                                                            <input
+                                                                name={choice.key}
+                                                                type="text"
                                                                 disabled={isSaving}
-                                                                onChange={(e) => setEditData({ ...editData, correct_choice: e.target.value })}
-                                                                className="hidden-radio-input"
+                                                                className="dark-input-box choices-inline-input"
+                                                                value={editData[choice.key] || ""}
+                                                                onChange={(e) => handleInputChange(e, setEditData, editData)}
                                                             />
-                                                            <div className={`radio-custom-bubble ${editData.correct_choice?.toUpperCase() === choice.letter ? "active-bubble-select" : ""}`}>
-                                                                {choice.letter}
-                                                            </div>
-                                                        </label>
-                                                        <input
-                                                            name={choice.key}
-                                                            type="text"
-                                                            disabled={isSaving}
-                                                            className="dark-input-box choices-inline-input"
-                                                            value={editData[choice.key] || ""}
-                                                            onChange={(e) => handleInputChange(e, setEditData, editData)}
-                                                        />
-                                                    </div>
-                                                ))}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="form-field-block">
+                                                <label>{editData.card_type === "CLOZE" ? "ANSWER (THE HIDDEN WORD/PHRASE):" : "ANSWER (BACK OF CARD):"}</label>
+                                                <textarea
+                                                    name="answer"
+                                                    disabled={isSaving}
+                                                    rows={3}
+                                                    className="dark-textarea"
+                                                    value={editData.answer || ""}
+                                                    onChange={(e) => handleInputChange(e, setEditData, editData)}
+                                                />
+                                            </div>
+                                        )}
 
                                         {/* Edit Sub Topic */}
                                         <div className="form-field-block">
@@ -377,6 +657,72 @@ const TeacherFlashcardsPage = () => {
                                             />
                                         </div>
 
+                                        {/* Edit Bloom's Taxonomy Level */}
+                                        <div className="form-field-block">
+                                            <label>BLOOM'S TAXONOMY LEVEL (OPTIONAL — NOT SHOWN TO STUDENTS):</label>
+                                            <select
+                                                name="bloom_level"
+                                                disabled={isSaving}
+                                                className="dark-input-box"
+                                                value={editData.bloom_level || ""}
+                                                onChange={(e) => handleInputChange(e, setEditData, editData)}
+                                            >
+                                                <option value="">Not set</option>
+                                                {Object.entries(BLOOM_LEVEL_LABELS).map(([value, label]) => (
+                                                    <option key={value} value={value}>{label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Edit Image */}
+                                        <div className="form-field-block">
+                                            <label>IMAGE (OPTIONAL):</label>
+                                            {editImage ? (
+                                                <div className="flashcard-image-preview-wrapper">
+                                                    <img
+                                                        src={URL.createObjectURL(editImage)}
+                                                        alt="Selected preview"
+                                                        className="flashcard-image-preview"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={isSaving}
+                                                        className="submit-button delete-btn remove-image-btn"
+                                                        onClick={() => setEditImage(null)}
+                                                    >
+                                                        🗑️ Remove Selected Image
+                                                    </button>
+                                                </div>
+                                            ) : editData.image_url && !editRemoveImage ? (
+                                                <div className="flashcard-image-preview-wrapper">
+                                                    <img
+                                                        src={editData.image_url}
+                                                        alt="Current"
+                                                        className="flashcard-image-preview"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={isSaving}
+                                                        className="submit-button delete-btn remove-image-btn"
+                                                        onClick={() => setEditRemoveImage(true)}
+                                                    >
+                                                        🗑️ Remove Image
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    disabled={isSaving}
+                                                    className="dark-input-box"
+                                                    onChange={(e) => {
+                                                        setEditImage(e.target.files?.[0] || null);
+                                                        setEditRemoveImage(false);
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+
                                         <div className="flashcard-actions">
                                             <button 
                                                 onClick={handleSave} 
@@ -385,41 +731,59 @@ const TeacherFlashcardsPage = () => {
                                             >
                                                 {isSaving ? "⏳ Saving..." : "💾 Save"}
                                             </button>
-                                            <button onClick={() => setEditingId(null)} disabled={isSaving} className="submit-button delete-btn">❌ Cancel</button>
+                                            <button onClick={handleCancelEdit} disabled={isSaving} className="submit-button delete-btn">❌ Cancel</button>
                                         </div>
                                     </div>
                                 ) : (
                                     <>
                                         <div className="card-badge-row">
                                             <span className="badge active-badge">Active Flashcard</span>
+                                            <span className="badge type-badge">
+                                                {CARD_TYPE_LABELS[f.card_type] || f.card_type}
+                                            </span>
                                             {f.sub_topic && (
                                                 <span className="badge topic-badge">Sub-topic: {f.sub_topic}</span>
                                             )}
+                                            {f.bloom_level && (
+                                                <span className="badge topic-badge">
+                                                    Bloom's: {BLOOM_LEVEL_LABELS[f.bloom_level] || f.bloom_level}
+                                                </span>
+                                            )}
                                         </div>
 
-                                        <h3 className="premium-card-question">{f.question}</h3>
+                                        <h3 className="premium-card-question"><ClozeText text={f.question} /></h3>
 
-                                        <div className="premium-choices-stack">
-                                            {[
-                                                { letter: "A", text: f.choice_a },
-                                                { letter: "B", text: f.choice_b },
-                                                { letter: "C", text: f.choice_c },
-                                                { letter: "D", text: f.choice_d }
-                                            ].map((choice) => {
-                                                const isCorrect = f.correct_choice?.toUpperCase() === choice.letter;
-                                                return (
-                                                    <div 
-                                                        key={choice.letter} 
-                                                        className={`premium-choice-row ${isCorrect ? 'correct-choice-row' : ''}`}
-                                                    >
-                                                        <div className={`choice-letter-bubble ${isCorrect ? 'correct-bubble' : ''}`}>
-                                                            {choice.letter}
+                                        {f.image_url && (
+                                            <img src={f.image_url} alt="" className="flashcard-image-preview premium-card-image" />
+                                        )}
+
+                                        {["BASIC", "CLOZE"].includes(f.card_type) ? (
+                                            <div className="premium-basic-stack">
+                                                <p className="basic-answer-text"><strong>Answer:</strong> {f.answer}</p>
+                                            </div>
+                                        ) : (
+                                            <div className="premium-choices-stack">
+                                                {[
+                                                    { letter: "A", text: f.choice_a },
+                                                    { letter: "B", text: f.choice_b },
+                                                    { letter: "C", text: f.choice_c },
+                                                    { letter: "D", text: f.choice_d }
+                                                ].map((choice) => {
+                                                    const isCorrect = f.correct_choice?.toUpperCase() === choice.letter;
+                                                    return (
+                                                        <div
+                                                            key={choice.letter}
+                                                            className={`premium-choice-row ${isCorrect ? 'correct-choice-row' : ''}`}
+                                                        >
+                                                            <div className={`choice-letter-bubble ${isCorrect ? 'correct-bubble' : ''}`}>
+                                                                {choice.letter}
+                                                            </div>
+                                                            <span className="choice-row-text">{choice.text}</span>
                                                         </div>
-                                                        <span className="choice-row-text">{choice.text}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
 
                                         <div className="premium-card-footer">
                                             <div className="flashcard-actions">
@@ -435,39 +799,22 @@ const TeacherFlashcardsPage = () => {
                 </div>
             </div>
 
-            {/* --- MODAL 1: CONFIRM DELETION --- */}
-            {deleteModal.show && (
-                <div className="custom-modal-overlay">
-                    <div className="custom-modal-card explicit-warning border-red">
-                        <div className="modal-icon-warning">⚠️</div>
-                        <h3>Confirm Deletion</h3>
-                        <p>Are you sure you want to permanently delete this flashcard? This action cannot be undone.</p>
-                        <div className="modal-split-actions">
-                            <button onClick={confirmDelete} className="submit-button confirm-destructive-btn">Yes, Delete</button>
-                            <button onClick={() => setDeleteModal({ show: false, cardId: null })} className="submit-button modal-close-btn gray-btn">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* --- MODAL 2: CENTRAL ALERTS (SUCCESS & ERROR) --- */}
-            {alertModal.show && (
-                <div className="custom-modal-overlay">
-                    <div className="custom-modal-card">
-                        <div className="modal-icon-status">
-                            {alertModal.type === "success" ? "✨" : "⛔"}
-                        </div>
-                        <h3 className={alertModal.type === "error" ? "text-danger" : ""}>{alertModal.title}</h3>
-                        <p>{alertModal.message}</p>
-                        <button 
-                            onClick={() => setAlertModal({ ...alertModal, show: false })} 
-                            className="submit-button modal-close-btn"
-                        >
-                            Dismiss
-                        </button>
-                    </div>
-                </div>
-            )}
+            <ConfirmModal
+                show={deleteModal.show}
+                danger
+                title="Confirm Deletion"
+                message="Are you sure you want to permanently delete this flashcard? This action cannot be undone."
+                confirmLabel="Yes, Delete"
+                onConfirm={confirmDelete}
+                onCancel={() => setDeleteModal({ show: false, cardId: null })}
+            />
+            <AlertModal
+                show={alertModal.show}
+                type={alertModal.type}
+                title={alertModal.title}
+                message={alertModal.message}
+                onClose={() => setAlertModal({ ...alertModal, show: false })}
+            />
         </div>
     );
 };

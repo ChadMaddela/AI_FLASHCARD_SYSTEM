@@ -1,7 +1,7 @@
 import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../api";
+import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { loginAndRedirect } from "../utils/auth";
 import "../styles/LoginPage.css";
 
 const LoginPage = () => {
@@ -17,40 +17,7 @@ const LoginPage = () => {
     setError("");
     setLoading(true);
     try {
-      // Request JWT token
-      const res = await api.post("token/", { username, password });
-      const { access } = res.data;
-      localStorage.setItem("token", access);
-
-      // Fetch user profile
-      const userRes = await api.get("user/me/", {
-        headers: { Authorization: `Bearer ${access}` },
-      });
-      const role = userRes.data.role;
-      const finalName =
-        userRes.data.first_name ||
-        userRes.data.username ||
-        userRes.data.name ||
-        "Student";
-
-      localStorage.setItem("role", role);
-      localStorage.setItem("username", finalName);
-
-      // Update context
-      setToken(access);
-      setRole(role);
-      if (setUsernameState) setUsernameState(finalName);
-
-      // ✅ Route to clean dashboard — StudentDashboard handles material
-      //    selection internally; no materialId baked into the URL here.
-      const normalizedRole = role ? role.toLowerCase() : "";
-      if (normalizedRole === "student") {
-        navigate("/dashboard", { replace: true });
-      } else if (normalizedRole === "teacher") {
-        navigate("/teacher-dashboard", { replace: true });
-      } else {
-        setError("Unauthorized system profile role detected.");
-      }
+      await loginAndRedirect(username, password, { setToken, setRole, setUsernameState }, navigate);
     } catch (err) {
       console.error("Login failure debug details:", err);
       setError("Invalid username or password");
@@ -82,6 +49,9 @@ const LoginPage = () => {
           {loading ? "LOGGING IN..." : "Log In"}
         </button>
       </form>
+      <p className="register-link-text">
+        Don't have an account? <Link to="/register">Register</Link>
+      </p>
     </div>
   );
 };
