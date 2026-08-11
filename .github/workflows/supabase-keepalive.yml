@@ -1,0 +1,23 @@
+name: Supabase Keepalive
+
+# Supabase's free tier auto-pauses a project after 7 days with no DB activity,
+# with no auto-resume. This pings the DB twice a week so it never goes idle
+# long enough to trigger that. (Same fix used for the DPWH-RCMED project, see
+# Memento notes — there it's a VM cron job; here it's a GitHub Actions cron
+# since this repo has no always-on host.)
+
+on:
+  schedule:
+    - cron: "0 3 * * 1,4" # Mon & Thu 03:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    name: Ping Supabase Postgres
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run keepalive query
+        run: psql "${{ secrets.DATABASE_URL }}" -c "SELECT 1;"
