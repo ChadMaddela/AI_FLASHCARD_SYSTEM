@@ -101,89 +101,112 @@ const AdminUsersPage = () => {
   return (
     <div className="flashcards-container">
       <h2>Manage Users</h2>
-      <div className="flashcards-scroll">
-        {users.map((u) => (
-          <div key={u.id} className="premium-flashcard-card">
-            {editingId === u.id ? (
-              <div className="edit-form form-grid">
-                <div className="form-field-block">
-                  <label>USERNAME:</label>
-                  <input
-                    name="username"
-                    type="text"
-                    disabled={isSaving}
-                    className="dark-input-box"
-                    value={editData.username}
-                    onChange={handleFieldChange}
-                  />
-                </div>
-                <div className="form-field-block">
-                  <label>EMAIL:</label>
-                  <input
-                    name="email"
-                    type="email"
-                    disabled={isSaving}
-                    className="dark-input-box"
-                    value={editData.email}
-                    onChange={handleFieldChange}
-                  />
-                </div>
-                <div className="form-field-block">
-                  <label>ROLE:</label>
-                  <select
-                    name="role"
-                    disabled={isSaving}
-                    className="dark-input-box"
-                    value={editData.role}
-                    onChange={handleFieldChange}
-                  >
-                    <option value="STUDENT">Student</option>
-                    <option value="TEACHER">Teacher</option>
-                  </select>
-                </div>
-                <div className="form-field-block">
-                  <label>NEW PASSWORD (LEAVE BLANK TO KEEP UNCHANGED):</label>
-                  <input
-                    name="new_password"
-                    type="password"
-                    disabled={isSaving}
-                    className="dark-input-box"
-                    value={editData.new_password}
-                    onChange={handleFieldChange}
-                  />
-                </div>
-                <div className="flashcard-actions">
-                  <button
-                    onClick={() => triggerSave(u.id)}
-                    disabled={isSaving}
-                    className={`submit-button edit-btn ${isSaving ? "btn-disabled" : ""}`}
-                  >
-                    {isSaving ? "⏳ Saving..." : "💾 Save"}
-                  </button>
-                  <button onClick={() => setEditingId(null)} disabled={isSaving} className="submit-button delete-btn">
-                    ❌ Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="card-badge-row">
-                  <span className={`badge ${u.role === "TEACHER" ? "active-badge" : "topic-badge"}`}>
-                    {u.role === "TEACHER" ? "Teacher" : "Student"}
-                  </span>
-                  {u.id === currentUser?.id && <span className="badge type-badge">You</span>}
-                </div>
-                <h3 className="premium-card-question">{u.username}</h3>
-                <p className="choice-row-text">{u.email || "No email on file"}</p>
-                <div className="premium-card-footer">
-                  <div className="flashcard-actions">
-                    <button onClick={() => handleEdit(u)} className="submit-button edit-btn">✏️ Edit</button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+      <div className="admin-table-wrapper">
+        <table className="analytics-topic-table admin-users-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Password</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => {
+              const isEditing = editingId === u.id;
+              return (
+                <tr key={u.id} className={isEditing ? "admin-row-editing" : ""}>
+                  <td>
+                    <div className="admin-user-cell">
+                      <span className="admin-user-avatar">{u.username?.[0]?.toUpperCase() || "?"}</span>
+                      {isEditing ? (
+                        <input
+                          name="username"
+                          type="text"
+                          disabled={isSaving}
+                          className="dark-input-box admin-cell-input"
+                          value={editData.username}
+                          onChange={handleFieldChange}
+                        />
+                      ) : (
+                        <>
+                          <span className="admin-user-name">{u.username}</span>
+                          {u.id === currentUser?.id && <span className="badge type-badge">You</span>}
+                        </>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <input
+                        name="email"
+                        type="email"
+                        disabled={isSaving}
+                        className="dark-input-box admin-cell-input"
+                        value={editData.email}
+                        onChange={handleFieldChange}
+                      />
+                    ) : (
+                      u.email || "No email on file"
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <select
+                        name="role"
+                        disabled={isSaving}
+                        className="dark-input-box admin-cell-input"
+                        value={editData.role}
+                        onChange={handleFieldChange}
+                      >
+                        <option value="STUDENT">Student</option>
+                        <option value="TEACHER">Teacher</option>
+                      </select>
+                    ) : (
+                      <span className={`badge ${u.role === "TEACHER" ? "active-badge" : "topic-badge"}`}>
+                        {u.role === "TEACHER" ? "Teacher" : "Student"}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <input
+                        name="new_password"
+                        type="password"
+                        placeholder="Leave blank to keep"
+                        disabled={isSaving}
+                        className="dark-input-box admin-cell-input"
+                        value={editData.new_password}
+                        onChange={handleFieldChange}
+                      />
+                    ) : (
+                      "••••••••"
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <div className="admin-row-actions">
+                        <button
+                          onClick={() => triggerSave(u.id)}
+                          disabled={isSaving}
+                          className={`submit-button edit-btn ${isSaving ? "btn-disabled" : ""}`}
+                        >
+                          {isSaving ? "Saving..." : "Save"}
+                        </button>
+                        <button onClick={() => setEditingId(null)} disabled={isSaving} className="submit-button delete-btn">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => handleEdit(u)} className="submit-button edit-btn">✏️ Edit</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <ConfirmModal

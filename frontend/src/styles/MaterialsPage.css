@@ -816,6 +816,80 @@
   border-bottom: none;
 }
 
+/* Admin Users Table (compact table, replaces the old one-card-per-user list) */
+.admin-table-wrapper {
+  background: #191c26;
+  border: 1px solid #252936;
+  border-radius: 18px;
+  padding: 0.5rem 1.5rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.admin-users-table {
+  min-width: 760px;
+}
+
+.admin-users-table th:last-child,
+.admin-users-table td:last-child {
+  text-align: right;
+}
+
+.admin-users-table tbody tr:not(.admin-edit-row):hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.admin-user-avatar {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(79, 172, 254, 0.15);
+  color: #4facfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.admin-user-name {
+  color: #fff;
+  font-weight: 600;
+}
+
+.admin-row-editing {
+  background: rgba(79, 172, 254, 0.05);
+}
+
+.admin-cell-input {
+  width: 100%;
+  min-width: 110px;
+  height: 32px;
+  box-sizing: border-box;
+}
+
+select.admin-cell-input {
+  height: 32px;
+}
+
+.admin-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.admin-row-actions .submit-button {
+  padding: 0.4rem 0.65rem;
+}
+
 /* ==========================================================================
    10. ANIMATION TIMINGS KEYFRAMES
    ========================================================================== */
