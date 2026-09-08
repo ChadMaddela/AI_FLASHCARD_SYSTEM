@@ -22,6 +22,7 @@ import StudentQuizzesPage from "./pages/StudentQuizzesPage";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import HelpPage from "./pages/HelpPage";
+import TeacherSustainabilityPage from "./pages/TeacherSustainabilityPage";
 import NavBar from "./components/NavBar";
 import OnboardingTutorial from "./components/OnboardingTutorial";
 
@@ -100,6 +101,7 @@ function AppRoutes() {
               <Route path="/admin/users" element={<AdminUsersPage />} />
               <Route path="/teacher/analytics" element={<TeacherAnalyticsPage />} />
               <Route path="/teacher/quizzes/:materialId" element={<TeacherQuizzesPage />} />
+              <Route path="/teacher/sustainability" element={<TeacherSustainabilityPage />} />
             </>
           )}
 
