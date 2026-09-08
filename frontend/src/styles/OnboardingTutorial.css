@@ -1,0 +1,54 @@
+.wide-modal-card {
+  max-width: 480px;
+  text-align: left;
+}
+
+.wide-modal-card h3 {
+  text-align: center;
+}
+
+.tutorial-progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.tutorial-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2d3748;
+  transition: background 0.2s ease;
+}
+
+.tutorial-dot.active {
+  background: #4facfe;
+}
+
+.privacy-notice-body {
+  text-align: left;
+}
+
+.privacy-notice-body ul {
+  padding-left: 1.1rem;
+  margin: 0.5rem 0 0.75rem;
+  color: #94a3b8;
+}
+
+.privacy-notice-body ul li {
+  margin-bottom: 0.5rem;
+}
+
+.privacy-modal-link {
+  display: block;
+  text-align: center;
+  margin-top: 1rem;
+  color: #4facfe;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.privacy-modal-link:hover {
+  text-decoration: underline;
+}

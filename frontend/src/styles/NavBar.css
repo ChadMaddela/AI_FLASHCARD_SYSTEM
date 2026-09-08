@@ -81,6 +81,25 @@
   color: #00f2fe;
 }
 
+.help-tutorial-btn {
+  background: rgba(79, 172, 254, 0.1);
+  color: #4facfe;
+  border: 1px solid rgba(79, 172, 254, 0.25);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  margin-right: 0.75rem;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.help-tutorial-btn:hover {
+  background: #4facfe;
+  color: #0a0e17;
+}
+
 .logout-button {
   background: rgba(255, 75, 75, 0.1);
   color: #ff4b4b;

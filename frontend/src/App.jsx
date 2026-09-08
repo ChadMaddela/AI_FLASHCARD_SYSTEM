@@ -7,6 +7,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AuthContext } from "./context/AuthContext";
+import { TutorialProvider } from "./context/TutorialContext";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -18,7 +19,10 @@ import StudentAnalyticsPage from "./pages/StudentAnalyticsPage";
 import TeacherAnalyticsPage from "./pages/TeacherAnalyticsPage";
 import TeacherQuizzesPage from "./pages/TeacherQuizzesPage";
 import StudentQuizzesPage from "./pages/StudentQuizzesPage";
+import AboutPage from "./pages/AboutPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import NavBar from "./components/NavBar";
+import OnboardingTutorial from "./components/OnboardingTutorial";
 
 function AppRoutes() {
   const { token, role } = useContext(AuthContext);
@@ -40,11 +44,13 @@ function AppRoutes() {
   );
 
   return (
-    <div className={isLoginPage ? "app-container login-view" : "app-container authenticated-view"}>
-      {!isLoginPage && <NavBar />}
+    <TutorialProvider>
+      <div className={isLoginPage ? "app-container login-view" : "app-container authenticated-view"}>
+        {!isLoginPage && <NavBar />}
+        <OnboardingTutorial />
 
-      <div className={isLoginPage ? "auth-container" : "main-content-layout"}>
-        <Routes>
+        <div className={isLoginPage ? "auth-container" : "main-content-layout"}>
+          <Routes>
           {/* Default route */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -53,6 +59,10 @@ function AppRoutes() {
 
           {/* Register route */}
           <Route path="/register" element={token ? redirectByRole : <RegisterPage />} />
+
+          {/* Public info pages — accessible whether logged in or not */}
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
 
           {/* Student routes */}
           {token && normalizedRole === "student" && (
@@ -93,9 +103,10 @@ function AppRoutes() {
 
           {/* Catch-all */}
           <Route path="*" element={token ? redirectByRole : <Navigate to="/login" replace />} />
-        </Routes>
+          </Routes>
+        </div>
       </div>
-    </div>
+    </TutorialProvider>
   );
 }
 

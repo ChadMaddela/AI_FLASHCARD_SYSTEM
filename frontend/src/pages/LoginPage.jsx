@@ -1,8 +1,11 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { loginAndRedirect } from "../utils/auth";
+import PrivacyNoticeModal from "../components/PrivacyNoticeModal";
 import "../styles/LoginPage.css";
+
+const PRIVACY_ACK_KEY = "privacy_notice_ack";
 
 const LoginPage = () => {
   const { setToken, setRole, setUsernameState } = useContext(AuthContext);
@@ -11,7 +14,19 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (localStorage.getItem(PRIVACY_ACK_KEY) !== "true") {
+      setShowPrivacyNotice(true);
+    }
+  }, []);
+
+  const acknowledgePrivacyNotice = () => {
+    localStorage.setItem(PRIVACY_ACK_KEY, "true");
+    setShowPrivacyNotice(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,6 +89,11 @@ const LoginPage = () => {
       <p className="register-link-text">
         Don't have an account? <Link to="/register">Register</Link>
       </p>
+      <p className="register-link-text">
+        <Link to="/about">About</Link> · <Link to="/privacy">Privacy Policy</Link>
+      </p>
+
+      <PrivacyNoticeModal show={showPrivacyNotice} onAcknowledge={acknowledgePrivacyNotice} />
     </div>
   );
 };
