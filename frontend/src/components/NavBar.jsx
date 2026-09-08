@@ -47,7 +47,7 @@ function NavBar() {
           <>
             <Link to="/admin/users" className="nav-link">Manage Users</Link>
             <Link to="/teacher/analytics" className="nav-link">Class Analytics</Link>
-            <Link to="/teacher/sustainability" className="nav-link">Maintenance Plan</Link>
+            <Link to="/teacher/sustainability" className="nav-link">System Notes</Link>
           </>
         )}
 
