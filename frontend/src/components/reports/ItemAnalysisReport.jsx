@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../../api";
 import { downloadFileFromApi } from "../../utils/downloadFile";
 import LoadingScreen from "../LoadingScreen";
+import InfoTooltip from "../InfoTooltip";
 
 const slugify = (label) => (label || "").toLowerCase().replace(/\s+/g, "-");
 
@@ -43,7 +44,10 @@ const ItemAnalysisReport = ({ token, quizId }) => {
 
     return (
         <div className="analytics-section-block">
-            <h3>Item Analysis</h3>
+            <h3>
+                Item Analysis
+                <InfoTooltip text="Shows which quiz questions were too easy, too hard, or didn't separate your stronger students from weaker ones — based on how your class actually answered. Use it to spot questions worth revising or retiring." />
+            </h3>
             <button onClick={handleDownloadPdf} className="submit-button edit-btn">
                 📄 Download PDF
             </button>

@@ -1,12 +1,10 @@
 import React, { useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { TutorialContext } from "../context/TutorialContext";
 import "../styles/NavBar.css";
 
 function NavBar() {
   const { token, role, setToken, setRole } = useContext(AuthContext);
-  const { openTutorial } = useContext(TutorialContext);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -57,11 +55,9 @@ function NavBar() {
 
       {/* Far Right Action Items Group */}
       <div className="navbar-actions-section">
-        {token && (
-          <button onClick={openTutorial} className="help-tutorial-btn" title="Replay the tutorial">
-            ❔ Help
-          </button>
-        )}
+        <Link to="/help" className="help-tutorial-btn">
+          ❔ Help
+        </Link>
         {!token ? (
           <Link to="/login" className="login-link-btn">Login</Link>
         ) : (

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import api from "../../api";
 import { downloadFileFromApi } from "../../utils/downloadFile";
+import InfoTooltip from "../InfoTooltip";
 
 const BLOOM_LEVEL_LABELS = {
     REMEMBERING: "Remembering",
@@ -64,7 +65,10 @@ const TOSReport = ({ token, quizId, flashcards }) => {
 
     return (
         <div className="analytics-section-block">
-            <h3>Table of Specifications</h3>
+            <h3>
+                Table of Specifications
+                <InfoTooltip text="Compares how many quiz items you have per topic against how much class time each topic actually got, and how those items are spread across Bloom's levels (recall vs. deeper thinking). Helps you spot topics that are over- or under-tested." />
+            </h3>
             <p className="topic-meta-text">
                 Enter the number of hours spent teaching each topic. The ideal item count is
                 computed from each topic's share of total teaching hours.

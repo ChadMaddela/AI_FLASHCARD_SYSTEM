@@ -82,6 +82,7 @@
 }
 
 .help-tutorial-btn {
+  display: inline-block;
   background: rgba(79, 172, 254, 0.1);
   color: #4facfe;
   border: 1px solid rgba(79, 172, 254, 0.25);
@@ -90,6 +91,7 @@
   font-size: 0.85rem;
   font-weight: 600;
   font-family: 'Poppins', sans-serif;
+  text-decoration: none;
   cursor: pointer;
   margin-right: 0.75rem;
   transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);

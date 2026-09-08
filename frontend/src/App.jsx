@@ -21,6 +21,7 @@ import TeacherQuizzesPage from "./pages/TeacherQuizzesPage";
 import StudentQuizzesPage from "./pages/StudentQuizzesPage";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import HelpPage from "./pages/HelpPage";
 import NavBar from "./components/NavBar";
 import OnboardingTutorial from "./components/OnboardingTutorial";
 
@@ -63,6 +64,7 @@ function AppRoutes() {
           {/* Public info pages — accessible whether logged in or not */}
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/help" element={<HelpPage />} />
 
           {/* Student routes */}
           {token && normalizedRole === "student" && (

@@ -6,6 +6,7 @@ import TOSReport from "../components/reports/TOSReport";
 import ItemAnalysisReport from "../components/reports/ItemAnalysisReport";
 import CompetencyMasteryReport from "../components/reports/CompetencyMasteryReport";
 import LoadingScreen from "../components/LoadingScreen";
+import InfoTooltip from "../components/InfoTooltip";
 import { downloadFileFromApi } from "../utils/downloadFile";
 import "../styles/Dashboard.css";
 
@@ -123,7 +124,10 @@ const TeacherAnalyticsPage = () => {
           </div>
 
           <div className="analytics-section-block">
-            <h3>Class Breakdown by Sub-topic</h3>
+            <h3>
+              Class Breakdown by Sub-topic
+              <InfoTooltip text="Shows how your whole class is doing on each sub-topic in everyday flashcard practice — average mastery and accuracy — so you can see where to focus your next lesson." />
+            </h3>
             {classData.topic_breakdown.length === 0 ? (
               <p className="topic-meta-text">No review data yet.</p>
             ) : (

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../../api";
 import { downloadFileFromApi } from "../../utils/downloadFile";
 import LoadingScreen from "../LoadingScreen";
+import InfoTooltip from "../InfoTooltip";
 
 const slugify = (label) => (label || "").toLowerCase().replace(/\s+/g, "-");
 
@@ -43,7 +44,10 @@ const CompetencyMasteryReport = ({ token, quizId }) => {
 
     return (
         <div className="analytics-section-block">
-            <h3>Competency Mastery Report</h3>
+            <h3>
+                Competency Mastery Report
+                <InfoTooltip text="Breaks down your class's average score by topic and flags which topics fall below the DepEd mastery threshold, plus exactly which students need remediation on each one." />
+            </h3>
             <button onClick={handleDownloadPdf} className="submit-button edit-btn">
                 📄 Download PDF
             </button>

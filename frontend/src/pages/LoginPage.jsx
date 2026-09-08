@@ -90,7 +90,7 @@ const LoginPage = () => {
         Don't have an account? <Link to="/register">Register</Link>
       </p>
       <p className="register-link-text">
-        <Link to="/about">About</Link> · <Link to="/privacy">Privacy Policy</Link>
+        <Link to="/about">About</Link> · <Link to="/privacy">Privacy Policy</Link> · <Link to="/help">Help</Link>
       </p>
 
       <PrivacyNoticeModal show={showPrivacyNotice} onAcknowledge={acknowledgePrivacyNotice} />
